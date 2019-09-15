@@ -17,12 +17,18 @@ interface IAPIChoiceOption {
     label: string
 }
 
-interface IAPIPropertyDescriptor {
+interface IAPIValidationRules {
+    required?: boolean;
+    minLength?: number;
+    min?:number|Date;
+    max?:number|Date;
+}
+
+interface IAPIPropertyDescriptor extends IAPIValidationRules {
     name: string;
     isMapName?: boolean;
     valueType: IAPITypeSchema;
-    defaultValue? : any
-    required?: boolean
+    defaultValue? : any;
 }
 
 interface IAPITypeSchema {
@@ -64,18 +70,30 @@ class APITypeSchema implements IAPITypeSchema {
     }
 }
 
-class APIPropertyDescriptor implements IAPIPropertyDescriptor {
+class APIValidableElement implements IAPIValidationRules {
+    public required: boolean;
+    public minLength?: number;
+    public min?: number|Date;
+    public max?: number|Date;
+    constructor(definition: IAPIValidationRules) {
+        this.required = definition.required || false;
+        this.minLength = typeof definition.minLength === "number" && definition.minLength > 0 ? definition.minLength : 0;
+        this.min = definition.min !== undefined && definition.min !== null ? definition.min : null;
+        this.max = definition.max !== undefined && definition.min !== null ? definition.max : null;
+    }
+}
+
+class APIPropertyDescriptor extends APIValidableElement implements IAPIPropertyDescriptor {
     public name: string;
     public isMapName : boolean;
     public valueType: APITypeSchema;
     public defaultValue: any;
-    public required: boolean;
     constructor(name: string, definition: IAPIPropertyDescriptor) {
+        super(definition);
         this.name = name || definition.name || '';
         this.isMapName = definition.isMapName || false;
         this.valueType = new APITypeSchema(definition.valueType);
         this.defaultValue = definition.defaultValue === undefined ? null : definition.defaultValue;
-        this.required = definition.required || false;
     }
 }
 
@@ -91,18 +109,20 @@ enum APIValueSourceType {
 
 
 
-interface IAPIParameter {
+interface IAPIParameter extends IAPIValidationRules {
     name?: string;
     sourceType: APIValueSourceType;
     valueType: IAPITypeSchema;
 
 }
 
-class APIParameter implements IAPIParameter {
+
+class APIParameter extends APIValidableElement implements IAPIParameter {
     public name?: string;
     public sourceType: APIValueSourceType;
     public valueType: APITypeSchema;
     constructor(definition: IAPIParameter) {
+        super(definition);
         this.name = definition.name;
         this.sourceType = definition.sourceType || APIValueSourceType.Route;
         this.valueType = definition.valueType ? new APITypeSchema(definition.valueType): new APITypeSchema({ valueType: APIValueType.Any });
