@@ -2,32 +2,65 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 var APIValueType;
 (function (APIValueType) {
-    APIValueType[APIValueType["Null"] = 0] = "Null";
-    APIValueType[APIValueType["String"] = 1] = "String";
-    APIValueType[APIValueType["Boolean"] = 2] = "Boolean";
-    APIValueType[APIValueType["Integer"] = 3] = "Integer";
-    APIValueType[APIValueType["Float"] = 4] = "Float";
-    APIValueType[APIValueType["Date"] = 5] = "Date";
-    APIValueType[APIValueType["Choice"] = 6] = "Choice";
-    APIValueType[APIValueType["Array"] = 7] = "Array";
-    APIValueType[APIValueType["Object"] = 8] = "Object";
+    APIValueType["Any"] = "any";
+    APIValueType["Null"] = "null";
+    APIValueType["String"] = "string";
+    APIValueType["Boolean"] = "bool";
+    APIValueType["Integer"] = "int";
+    APIValueType["Float"] = "float";
+    APIValueType["Date"] = "date";
+    APIValueType["Choice"] = "choice";
+    APIValueType["Array"] = "array";
+    APIValueType["Object"] = "object";
 })(APIValueType || (APIValueType = {}));
+class APIChoiceOption {
+    constructor(definition) {
+        this.label = definition.label;
+        this.value = definition.value === undefined ? null : definition.value;
+    }
+}
+class APITypeSchema {
+    constructor(definition) {
+        this.valueType = definition.valueType || APIValueType.String;
+        this.choiceList = definition.choiceList ? definition.choiceList.map(subDef => new APIChoiceOption(subDef)) : null;
+        this.hasChoices = !!(this.choiceList && this.choiceList.length);
+        this.itemsType = definition.itemsType ? new APITypeSchema(definition.itemsType) : null;
+        if (this.valueType === APIValueType.Array && !this.itemsType) {
+            this.itemsType = new APITypeSchema({ valueType: APIValueType.Any });
+        }
+        this.properties = {};
+        if (definition.properties) {
+            for (let name in definition.properties) {
+                this.properties[name] = new APIPropertyDescriptor(name, definition.properties[name]);
+            }
+        }
+    }
+}
+class APIPropertyDescriptor {
+    constructor(name, definition) {
+        this.name = name || definition.name || '';
+        this.isMapName = definition.isMapName || false;
+        this.valueType = new APITypeSchema(definition.valueType);
+        this.defaultValue = definition.defaultValue === undefined ? null : definition.defaultValue;
+        this.required = definition.required || false;
+    }
+}
 var APIValueSourceType;
 (function (APIValueSourceType) {
-    APIValueSourceType[APIValueSourceType["Route"] = 0] = "Route";
-    APIValueSourceType[APIValueSourceType["Path"] = 1] = "Path";
-    APIValueSourceType[APIValueSourceType["QueryString"] = 2] = "QueryString";
-    APIValueSourceType[APIValueSourceType["Headers"] = 3] = "Headers";
-    APIValueSourceType[APIValueSourceType["Body"] = 4] = "Body";
+    APIValueSourceType["Route"] = "route";
+    APIValueSourceType["Path"] = "path";
+    APIValueSourceType["QueryString"] = "query";
+    APIValueSourceType["Headers"] = "headers";
+    APIValueSourceType["Body"] = "body";
 })(APIValueSourceType || (APIValueSourceType = {}));
 var HttpVerb;
 (function (HttpVerb) {
-    HttpVerb[HttpVerb["GET"] = 0] = "GET";
-    HttpVerb[HttpVerb["POST"] = 1] = "POST";
-    HttpVerb[HttpVerb["PUT"] = 2] = "PUT";
-    HttpVerb[HttpVerb["DELETE"] = 3] = "DELETE";
-    HttpVerb[HttpVerb["OPTIONS"] = 4] = "OPTIONS";
-    HttpVerb[HttpVerb["ALL"] = 5] = "ALL";
+    HttpVerb["GET"] = "GET";
+    HttpVerb["POST"] = "POST";
+    HttpVerb["PUT"] = "PUT";
+    HttpVerb["DELETE"] = "DELETE";
+    HttpVerb["OPTIONS"] = "OPTIONS";
+    HttpVerb["ALL"] = "ALL";
 })(HttpVerb || (HttpVerb = {}));
 class APIGroup {
     constructor(parent, definition) {
@@ -77,6 +110,13 @@ class APIStructure {
             for (let name in definition.modules) {
                 let entry = definition.modules[name];
                 this.modules[name] = new APIModuleEntry(this, name, entry);
+            }
+        }
+        this.defaultResponseType = definition.defaultResponseType ? new APITypeSchema(definition.defaultResponseType) : null;
+        this.errorTypes = {};
+        if (definition.errorTypes) {
+            for (let statusCode in definition.errorTypes) {
+                this.errorTypes[statusCode] = new APITypeSchema(definition.errorTypes[statusCode]);
             }
         }
     }

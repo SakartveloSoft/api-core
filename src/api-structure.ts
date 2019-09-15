@@ -1,14 +1,15 @@
 
 enum APIValueType {
-    Null,
-    String,
-    Boolean,
-    Integer,
-    Float,
-    Date,
-    Choice,
-    Array,
-    Object
+    Any= "any",
+    Null ="null",
+    String = "string",
+    Boolean = "bool",
+    Integer = "int",
+    Float = "float",
+    Date = "date",
+    Choice = "choice",
+    Array = "array",
+    Object = "object"
 }
 
 interface IAPIChoiceOption {
@@ -18,7 +19,7 @@ interface IAPIChoiceOption {
 
 interface IAPIPropertyDescriptor {
     name: string;
-    isMapName: boolean;
+    isMapName?: boolean;
     valueType: IAPITypeSchema;
     defaultValue? : any
     required?: boolean
@@ -28,38 +29,94 @@ interface IAPITypeSchema {
     valueType : APIValueType;
     choiceList?: IAPIChoiceOption[]|null;
     itemsType?: IAPITypeSchema|null;
-    properties:{[name:string]:IAPIPropertyDescriptor };
+    properties?:{[name:string]:IAPIPropertyDescriptor };
 }
+
+class APIChoiceOption implements IAPIChoiceOption {
+    public label: string;
+    public value: (string|number|boolean|Date|null);
+    constructor(definition:IAPIChoiceOption) {
+        this.label = definition.label;
+        this.value = definition.value === undefined ? null : definition.value;
+    }
+}
+
+class APITypeSchema implements IAPITypeSchema {
+    public valueType:APIValueType;
+    public choiceList?: APIChoiceOption[];
+    public hasChoices: boolean;
+    public itemsType: APITypeSchema;
+    public properties: {[name: string]: APIPropertyDescriptor};
+    constructor(definition: IAPITypeSchema) {
+        this.valueType = definition.valueType || APIValueType.String;
+        this.choiceList = definition.choiceList ? definition.choiceList.map(subDef => new APIChoiceOption(subDef)) : null;
+        this.hasChoices = !!(this.choiceList && this.choiceList.length);
+        this.itemsType = definition.itemsType ? new APITypeSchema(definition.itemsType) : null;
+        if (this.valueType === APIValueType.Array && !this.itemsType) {
+            this.itemsType = new APITypeSchema({ valueType: APIValueType.Any});
+        }
+        this.properties = {};
+        if (definition.properties) {
+            for(let name in definition.properties) {
+                this.properties[name] = new APIPropertyDescriptor(name, definition.properties[name]);
+            }
+        }
+    }
+}
+
+class APIPropertyDescriptor implements IAPIPropertyDescriptor {
+    public name: string;
+    public isMapName : boolean;
+    public valueType: APITypeSchema;
+    public defaultValue: any;
+    public required: boolean;
+    constructor(name: string, definition: IAPIPropertyDescriptor) {
+        this.name = name || definition.name || '';
+        this.isMapName = definition.isMapName || false;
+        this.valueType = new APITypeSchema(definition.valueType);
+        this.defaultValue = definition.defaultValue === undefined ? null : definition.defaultValue;
+        this.required = definition.required || false;
+    }
+}
+
 
 enum APIValueSourceType {
-    Route,
-    Path,
-    QueryString,
-    Headers,
-    Body
+    Route = "route",
+    Path = "path",
+    QueryString = "query",
+    Headers = "headers",
+    Body = "body"
 
 }
 
-interface IAPIValueSource {
-    sourceType:APIValueSourceType,
-    name?:string
-}
 
 
 interface IAPIParameter {
-    name: string;
-    type: IAPITypeSchema;
-    source: IAPIValueSource
+    name?: string;
+    sourceType: APIValueSourceType;
+    valueType: IAPITypeSchema;
+
+}
+
+class APIParameter implements IAPIParameter {
+    public name?: string;
+    public sourceType: APIValueSourceType;
+    public valueType: APITypeSchema;
+    constructor(definition: IAPIParameter) {
+        this.name = definition.name;
+        this.sourceType = definition.sourceType || APIValueSourceType.Route;
+        this.valueType = definition.valueType ? new APITypeSchema(definition.valueType): new APITypeSchema({ valueType: APIValueType.Any });
+    }
 
 }
 
 enum HttpVerb {
-    GET,
-    POST,
-    PUT,
-    DELETE,
-    OPTIONS,
-    ALL
+    GET = "GET",
+    POST = "POST",
+    PUT = "PUT",
+    DELETE = "DELETE",
+    OPTIONS = "OPTIONS",
+    ALL = "ALL"
 }
 
 interface IAPINode {
@@ -89,6 +146,8 @@ interface IAPIStructure extends IAPIGroup{
     pathRoot: string;
     version: string;
     modules: {[name:string]: IAPIModuleEntryDefinition };
+    defaultResponseType: IAPITypeSchema;
+    errorTypes: {[status: number]: IAPITypeSchema};
 }
 
 class APIGroup implements IAPIGroup {
@@ -108,14 +167,18 @@ class APIGroup implements IAPIGroup {
     }
 }
 
-class APIRoute {
+class APIRoute implements IAPIRoute{
     public name: string;
     public controller: string;
     public action: string;
     public routePrefix: string;
     public routeTemplate: string;
     public verb: HttpVerb;
+    public parameters: APIParameter[];
     public parent?: IAPINode;
+    public responseType: APITypeSchema;
+    public errorTypes: {[name: string]:APITypeSchema};
+    public hasParameters: boolean;
     constructor(parent:IAPINode, definition:IAPIRoute) {
         this.parent = parent;
         this.name = definition.name;
@@ -124,6 +187,15 @@ class APIRoute {
         this.verb = definition.verb || HttpVerb.GET;
         this.controller = definition.controller || parent.controller;
         this.action = definition.action;
+        this.parameters = definition.parameters ? definition.parameters.map(paramDef => new APIParameter(paramDef)) : null;
+        this.hasParameters = this.parameters && this.parameters.length > 0;
+        this.responseType = definition.responseType ? new APITypeSchema(definition.responseType) : new APITypeSchema({ valueType: APIValueType.Any });
+        this.errorTypes = {};
+        if (definition.errorTypes) {
+            for(let statusCode in definition.errorTypes) {
+                this.errorTypes[statusCode] = new APITypeSchema(definition.errorTypes[statusCode]);
+            }
+        }
     }
 }
 
@@ -155,14 +227,15 @@ class APIModuleEntry implements IAPIModuleEntryDefinition {
 }
 
 
+
 class APIStructure implements IAPIStructure{
     public name: string;
     public pathRoot: string;
     public version: string;
     public groups: APIGroup[];
     public routes: APIRoute[];
-    public defaultResponseType: IAPITypeSchema;
-    public errorTypes: {[status: number]: IAPITypeSchema};
+    public defaultResponseType: APITypeSchema;
+    public errorTypes: {[status: number]: APITypeSchema};
     public modules:{[name:string]: APIModuleEntry };
     constructor(definition:IAPIStructure) {
         this.name = definition.name || 'API';
@@ -175,6 +248,13 @@ class APIStructure implements IAPIStructure{
             for(let name in definition.modules) {
                 let entry = definition.modules[name];
                 this.modules[name] = new APIModuleEntry(this, name, entry);
+            }
+        }
+        this.defaultResponseType = definition.defaultResponseType ? new APITypeSchema(definition.defaultResponseType): null;
+        this.errorTypes = {};
+        if (definition.errorTypes) {
+            for(let statusCode in definition.errorTypes) {
+                this.errorTypes[statusCode] = new APITypeSchema(definition.errorTypes[statusCode]);
             }
         }
     }
