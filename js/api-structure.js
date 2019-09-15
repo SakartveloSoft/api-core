@@ -36,13 +36,21 @@ class APITypeSchema {
         }
     }
 }
-class APIPropertyDescriptor {
+class APIValidableElement {
+    constructor(definition) {
+        this.required = definition.required || false;
+        this.minLength = typeof definition.minLength === "number" && definition.minLength > 0 ? definition.minLength : 0;
+        this.min = definition.min !== undefined && definition.min !== null ? definition.min : null;
+        this.max = definition.max !== undefined && definition.min !== null ? definition.max : null;
+    }
+}
+class APIPropertyDescriptor extends APIValidableElement {
     constructor(name, definition) {
+        super(definition);
         this.name = name || definition.name || '';
         this.isMapName = definition.isMapName || false;
         this.valueType = new APITypeSchema(definition.valueType);
         this.defaultValue = definition.defaultValue === undefined ? null : definition.defaultValue;
-        this.required = definition.required || false;
     }
 }
 var APIValueSourceType;
@@ -53,6 +61,14 @@ var APIValueSourceType;
     APIValueSourceType["Headers"] = "headers";
     APIValueSourceType["Body"] = "body";
 })(APIValueSourceType || (APIValueSourceType = {}));
+class APIParameter extends APIValidableElement {
+    constructor(definition) {
+        super(definition);
+        this.name = definition.name;
+        this.sourceType = definition.sourceType || APIValueSourceType.Route;
+        this.valueType = definition.valueType ? new APITypeSchema(definition.valueType) : new APITypeSchema({ valueType: APIValueType.Any });
+    }
+}
 var HttpVerb;
 (function (HttpVerb) {
     HttpVerb["GET"] = "GET";
@@ -81,6 +97,15 @@ class APIRoute {
         this.verb = definition.verb || HttpVerb.GET;
         this.controller = definition.controller || parent.controller;
         this.action = definition.action;
+        this.parameters = definition.parameters ? definition.parameters.map(paramDef => new APIParameter(paramDef)) : null;
+        this.hasParameters = this.parameters && this.parameters.length > 0;
+        this.responseType = definition.responseType ? new APITypeSchema(definition.responseType) : new APITypeSchema({ valueType: APIValueType.Any });
+        this.errorTypes = {};
+        if (definition.errorTypes) {
+            for (let statusCode in definition.errorTypes) {
+                this.errorTypes[statusCode] = new APITypeSchema(definition.errorTypes[statusCode]);
+            }
+        }
     }
 }
 var APIModuleCreationMethod;
