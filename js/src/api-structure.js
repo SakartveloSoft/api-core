@@ -7,6 +7,7 @@ class APIChoiceOption {
         this.value = definition.value === undefined ? null : definition.value;
     }
 }
+exports.APIChoiceOption = APIChoiceOption;
 class APITypeSchema {
     constructor(definition) {
         this.valueType = definition.valueType || api_interfaces_1.APIValueType.String;
@@ -24,6 +25,7 @@ class APITypeSchema {
         }
     }
 }
+exports.APITypeSchema = APITypeSchema;
 class APIValidableElement {
     constructor(definition) {
         this.required = definition.required || false;
@@ -32,6 +34,7 @@ class APIValidableElement {
         this.max = definition.max !== undefined && definition.min !== null ? definition.max : null;
     }
 }
+exports.APIValidableElement = APIValidableElement;
 class APIPropertyDescriptor extends APIValidableElement {
     constructor(name, definition) {
         super(definition);
@@ -41,6 +44,7 @@ class APIPropertyDescriptor extends APIValidableElement {
         this.defaultValue = definition.defaultValue === undefined ? null : definition.defaultValue;
     }
 }
+exports.APIPropertyDescriptor = APIPropertyDescriptor;
 class APIParameter extends APIValidableElement {
     constructor(definition) {
         super(definition);
@@ -49,6 +53,7 @@ class APIParameter extends APIValidableElement {
         this.valueType = definition.valueType ? new APITypeSchema(definition.valueType) : new APITypeSchema({ valueType: api_interfaces_1.APIValueType.Any });
     }
 }
+exports.APIParameter = APIParameter;
 class APIGroup {
     constructor(parent, definition) {
         this.name = definition.name;
@@ -59,6 +64,7 @@ class APIGroup {
         this.routes = definition.routes ? definition.routes.map(subDef => new APIRoute(this, subDef)) : null;
     }
 }
+exports.APIGroup = APIGroup;
 class APIRoute {
     constructor(parent, definition) {
         this.parent = parent;
@@ -79,6 +85,7 @@ class APIRoute {
         }
     }
 }
+exports.APIRoute = APIRoute;
 class APIModuleEntry {
     constructor(api, name, definition) {
         this.api = api;
@@ -88,6 +95,7 @@ class APIModuleEntry {
         this.singleton = definition.singleton || false;
     }
 }
+exports.APIModuleEntry = APIModuleEntry;
 class APIStructure {
     constructor(definition) {
         this.name = definition.name || 'API';
@@ -111,6 +119,7 @@ class APIStructure {
         }
     }
 }
+exports.APIStructure = APIStructure;
 function defineAPIStructure(definition) {
     return new APIStructure(definition);
 }

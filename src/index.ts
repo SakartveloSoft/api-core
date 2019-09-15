@@ -2,6 +2,10 @@ import { defineAPIStructure} from "./api-structure";
 
 import { setCodeRoot} from "./modules-resolver";
 
-module.exports.defineAPIStructure = defineAPIStructure;
+import { compileValidator } from './request-validator';
 
-module.exports.setCodeRoot = setCodeRoot;
+export const definePIStructure = defineAPIStructure;
+
+export const bindsCodeRoot = setCodeRoot;
+
+export const defineValidator = compileValidator;

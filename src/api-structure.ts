@@ -1,44 +1,6 @@
+import {IAPIChoiceOption, IAPITypeSchema,  IAPIValidationRules, IAPIParameter, APIValueSourceType, IAPIPropertyDescriptor, APIValueType, IAPIRoute, IAPIModuleEntryDefinition, APIModuleCreationMethod, IAPINode, HttpVerb, IAPIGroup, IAPIStructure } from './api-interfaces';
 
-enum APIValueType {
-    Any= "any",
-    Null ="null",
-    String = "string",
-    Boolean = "bool",
-    Integer = "int",
-    Float = "float",
-    Date = "date",
-    Choice = "choice",
-    Array = "array",
-    Object = "object"
-}
-
-interface IAPIChoiceOption {
-    value : (string|number|boolean|Date|null),
-    label: string
-}
-
-interface IAPIValidationRules {
-    required?: boolean;
-    minLength?: number;
-    min?:number|Date;
-    max?:number|Date;
-}
-
-interface IAPIPropertyDescriptor extends IAPIValidationRules {
-    name: string;
-    isMapName?: boolean;
-    valueType: IAPITypeSchema;
-    defaultValue? : any;
-}
-
-interface IAPITypeSchema {
-    valueType : APIValueType;
-    choiceList?: IAPIChoiceOption[]|null;
-    itemsType?: IAPITypeSchema|null;
-    properties?:{[name:string]:IAPIPropertyDescriptor };
-}
-
-class APIChoiceOption implements IAPIChoiceOption {
+export class APIChoiceOption implements IAPIChoiceOption {
     public label: string;
     public value: (string|number|boolean|Date|null);
     constructor(definition:IAPIChoiceOption) {
@@ -47,7 +9,7 @@ class APIChoiceOption implements IAPIChoiceOption {
     }
 }
 
-class APITypeSchema implements IAPITypeSchema {
+export class APITypeSchema implements IAPITypeSchema {
     public valueType:APIValueType;
     public choiceList?: APIChoiceOption[];
     public hasChoices: boolean;
@@ -70,7 +32,7 @@ class APITypeSchema implements IAPITypeSchema {
     }
 }
 
-class APIValidableElement implements IAPIValidationRules {
+export class APIValidableElement implements IAPIValidationRules {
     public required: boolean;
     public minLength?: number;
     public min?: number|Date;
@@ -83,7 +45,7 @@ class APIValidableElement implements IAPIValidationRules {
     }
 }
 
-class APIPropertyDescriptor extends APIValidableElement implements IAPIPropertyDescriptor {
+export class APIPropertyDescriptor extends APIValidableElement implements IAPIPropertyDescriptor {
     public name: string;
     public isMapName : boolean;
     public valueType: APITypeSchema;
@@ -98,26 +60,12 @@ class APIPropertyDescriptor extends APIValidableElement implements IAPIPropertyD
 }
 
 
-enum APIValueSourceType {
-    Route = "route",
-    Path = "path",
-    QueryString = "query",
-    Headers = "headers",
-    Body = "body"
-
-}
 
 
 
-interface IAPIParameter extends IAPIValidationRules {
-    name?: string;
-    sourceType: APIValueSourceType;
-    valueType: IAPITypeSchema;
-
-}
 
 
-class APIParameter extends APIValidableElement implements IAPIParameter {
+export class APIParameter extends APIValidableElement implements IAPIParameter {
     public name?: string;
     public sourceType: APIValueSourceType;
     public valueType: APITypeSchema;
@@ -130,47 +78,8 @@ class APIParameter extends APIValidableElement implements IAPIParameter {
 
 }
 
-enum HttpVerb {
-    GET = "GET",
-    POST = "POST",
-    PUT = "PUT",
-    DELETE = "DELETE",
-    OPTIONS = "OPTIONS",
-    ALL = "ALL"
-}
 
-interface IAPINode {
-    name: string;
-    routePrefix?: string;
-    controller?: string;
-    action?: string;
-    parent?: IAPINode
-}
-
-interface IAPIRoute extends IAPINode {
-    verb: HttpVerb;
-    routeTemplate: string;
-    parameters?: IAPIParameter[];
-    responseType?: IAPITypeSchema;
-    errorTypes?: {[status: number]: IAPITypeSchema}
-}
-
-interface IAPIGroup extends IAPINode {
-    groups?: IAPIGroup[]
-    routes?: IAPIRoute[]
-
-}
-
-
-interface IAPIStructure extends IAPIGroup{
-    pathRoot: string;
-    version: string;
-    modules: {[name:string]: IAPIModuleEntryDefinition };
-    defaultResponseType: IAPITypeSchema;
-    errorTypes: {[status: number]: IAPITypeSchema};
-}
-
-class APIGroup implements IAPIGroup {
+export class APIGroup implements IAPIGroup {
     public name : string;
     public routePrefix? :string;
     public controller?: string;
@@ -187,7 +96,7 @@ class APIGroup implements IAPIGroup {
     }
 }
 
-class APIRoute implements IAPIRoute{
+export class APIRoute implements IAPIRoute{
     public name: string;
     public controller: string;
     public action: string;
@@ -219,19 +128,8 @@ class APIRoute implements IAPIRoute{
     }
 }
 
-enum APIModuleCreationMethod {
-    ConstructorCall,
-    FunctionCall,
-    ModuleResult,
-}
 
-interface IAPIModuleEntryDefinition {
-    path: string;
-    creationMethod?: APIModuleCreationMethod;
-    singleton?: boolean
-}
-
-class APIModuleEntry implements IAPIModuleEntryDefinition {
+export class APIModuleEntry implements IAPIModuleEntryDefinition {
     private api: APIStructure;
     public name: string;
     public path: string;
@@ -248,7 +146,7 @@ class APIModuleEntry implements IAPIModuleEntryDefinition {
 
 
 
-class APIStructure implements IAPIStructure{
+export class APIStructure implements IAPIStructure{
     public name: string;
     public pathRoot: string;
     public version: string;
