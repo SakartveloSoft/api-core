@@ -7,7 +7,7 @@ export class ValidationResult {
     public valueSource?: APIValueSourceType = null;
     public value?: any = undefined;
     public options: Object = null;
-    constructor(errorCode: string, value?: any, valueSource?: APIValueSourceType, validationPath?: string, options?:Object) {
+    constructor(errorCode: (ValidationErrorCodes|string), value?: any, valueSource?: APIValueSourceType, validationPath?: string, options?:Object) {
         this.errorCode = errorCode;
         this.isSuccess = errorCode === 'success' || errorCode === 'valueCleanedUp';
         this.value = value;
@@ -19,25 +19,40 @@ export class ValidationResult {
 let validatorsCache : {[defintion: string]:((value: any, valueSource?: APIValueSourceType, valueName?: string, validationPath?: string) => ValidationResult)} = {};
 
 let validators = {
-    isString: (value: any) => typeof value === "string" || value instanceof String,
-    isBoolean: (value: any) => value === true || value === false
+    isString: (value: any):value is string => typeof value === "string" || value instanceof String,
+    isBoolean: (value: any): value is boolean => value === true || value === false,
+    isNumber: (value: any): value is number => value !== undefined && value !== null && (typeof (value) === "number" || value instanceof Number) && !isNaN(value instanceof Number ? value.valueOf() : value),
+    isDate: (value: any): value is Date => value !== null && value !== undefined && value instanceof Date
 };
 
+export enum ValidationErrorCodes  {
+    Success = "success",
+    ValueCleanedUp = "valueCleanedUp",
+    Required = "required",
+    TooShort = "tooShort",
+    TooLong = "tooLong",
+    TypeMismatch = "typeMismatch",
+    InvalidFormat = "invalidFormat"
+}
+
 let resultFactories = {
-    success : new ValidationResult('success'),
-    successValue: (value: any) => new ValidationResult('success', value),
-    cleanValue:(value: any,  valueSource: APIValueSourceType, validationPath?: string) => new ValidationResult('valueCleanedUp', value, valueSource, validationPath),
+    success : new ValidationResult(ValidationErrorCodes.Success),
+    successValue: (value: any) => new ValidationResult(ValidationErrorCodes.Success, value),
+    cleanValue:(value: any,  valueSource: APIValueSourceType, validationPath?: string) => new ValidationResult(ValidationErrorCodes.ValueCleanedUp, value, valueSource, validationPath),
     valueRequired:(valueSource?: APIValueSourceType, validationPath?: string) => {
-        return new ValidationResult('required', undefined, valueSource, validationPath);
+        return new ValidationResult(ValidationErrorCodes.Required, undefined, valueSource, validationPath);
     },
     tooShort: (minLength: number,valueSource?: APIValueSourceType, validationPath?: string) => {
-        return new ValidationResult('tooShort', undefined, valueSource, validationPath, { minLength: minLength});
+        return new ValidationResult(ValidationErrorCodes.TooShort, undefined, valueSource, validationPath, { minLength: minLength});
     },
     tooLong: (maxLength: number,valueSource?: APIValueSourceType, validationPath?: string) => {
-        return new ValidationResult('tooLong', undefined, valueSource, validationPath, { maxLength: maxLength });
+        return new ValidationResult(ValidationErrorCodes.TooLong, undefined, valueSource, validationPath, { maxLength: maxLength });
     },
     typeMismatch(expectedType: APIValueType, valueSource?: APIValueSourceType, validationPath?: string) {
-        return new ValidationResult('invalidType',  undefined, valueSource, validationPath);
+        return new ValidationResult(ValidationErrorCodes.TypeMismatch,  undefined, valueSource, validationPath);
+    },
+    invalidFormat(invalidValue:any, expectedType: APIValueType, valueSource?: APIValueSourceType, validationPath?: string) {
+        return new ValidationResult(ValidationErrorCodes.InvalidFormat, invalidValue, valueSource, validationPath);
     }
 };
 
@@ -109,7 +124,7 @@ let compiledCheckers = {
     },
     ensureBoolean: (value: any, valueSource?: APIValueSourceType, valueName?: string, validationPath?: string, parentNode?: any): ValidationResult => {
         if (validators.isBoolean(value)) {
-            return resultFactories.success;
+            return resultFactories.successValue(value);
         }
         if (value === undefined || value === null) {
             if (parentNode && valueName) {
@@ -117,18 +132,41 @@ let compiledCheckers = {
             }
             return resultFactories.cleanValue(false, valueSource, validationPath + '/' + valueName);
         }
-        let strLiteral = value.toString();
+        let strLiteral = value.toString().trim().toLowerCase();
+        let cleanValue = false;
         if (trueString.includes(strLiteral)) {
-            if (parentNode && valueName) {
-                parentNode[valueName] = true;
-            }
-            return resultFactories.cleanValue(true, valueSource, validationPath + '/' + valueName);
+            cleanValue = true;
+        } else if (falseString.includes(strLiteral)) {
+            cleanValue = false;
+        } else {
+            return resultFactories.typeMismatch(APIValueType.Boolean, valueSource, `${validationPath}/${valueName}`);
         }
-        if (falseString.includes(strLiteral)) {
-            if (parentNode && valueName) {
-                parentNode[valueName] = false;
+        return resultFactories.cleanValue(cleanValue, valueSource, `${validationPath}/${valueName}`);
+    },
+    ensureValidDate(value: any, valueSource?: APIValueSourceType, valueName?:string, validationPath?: string, parentNode?: any):ValidationResult {
+        let cleanValue: Date;
+        if (validators.isDate(value)) {
+            cleanValue = value;
+        } else if (validators.isString(value) || validators.isNumber(value)) {
+            value = value.toString().trim();
+            try {
+                cleanValue = new Date(value.toString().trim().toLowerCase());
+            } catch (e) {
+                return resultFactories.typeMismatch(APIValueType.Date, valueSource, `${validationPath}/${valueName}`);
             }
-            return resultFactories.cleanValue(true, valueSource, validationPath + '/' + valueName);
+            if (cleanValue.toString() === "Invalid Date") {
+                return resultFactories.invalidFormat(value, APIValueType.Date, valueSource, `${validationPath}/${valueName}`);
+            }
+        } else {
+            return resultFactories.typeMismatch(APIValueType.Date, valueSource, `${validationPath}/${valueName}`);
+        }
+        if (value === cleanValue) {
+            return resultFactories.successValue(cleanValue);
+        } else {
+            if (parentNode && valueName) {
+                parentNode[valueName] = cleanValue;
+            }
+            return resultFactories.cleanValue(value, valueSource, `${validationPath}/${valueName}`);
         }
     }
 };
@@ -161,7 +199,7 @@ function makeValidatorFunction(checksList: ValidationCheckFunction[]): CompiledV
         if (hadValueCleanup) {
             return resultFactories.cleanValue(value, valueSource, validationPath + '/' + valueName)
         }
-        return resultFactories.success;
+        return resultFactories.successValue(value);
     }
 }
 
@@ -193,6 +231,9 @@ export function compileValidator(typeSchema:IAPITypeSchema, validationRules: IAP
                 break;
             case APIValueType.Boolean:
                 functionCode.push(compiledCheckers.ensureBoolean);
+                break;
+            case APIValueType.Date:
+                functionCode.push(compiledCheckers.ensureValidDate);
                 break;
             default:
                 throw new Error(`Support for validation of ${typeSchema.valueType} values is not ready`);
