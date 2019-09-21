@@ -39,4 +39,49 @@ describe('Test validator compilation',() => {
         expect(negativeResultInvalidCheck.isSuccess).equal(false);
         expect(negativeResultInvalidCheck.errorCode).equal(ValidationErrors.TypeMismatch);
     });
+    it('Compile integer validators', () => {
+        let validator = defineValidator({
+            valueType: APIValueType.Integer,
+        }, {
+            required: true
+        });
+
+        let result = validator(12345, APIValueSourceType.Body);
+        expect(result.isSuccess).equal(true);
+        expect(result.value).equal(12345);
+        result = validator("123256", APIValueSourceType.Body);
+        expect(result.isSuccess).equal(true);
+        expect(result.errorCode).equal(ValidationErrors.ValueCleanedUp);
+        expect(result.value).equal(123256);
+        let negativeResultRequiredCheck = validator(null, APIValueSourceType.Body);
+        expect(negativeResultRequiredCheck.isSuccess).equal(false);
+        expect(negativeResultRequiredCheck.errorCode).equal(ValidationErrors.Required);
+        let negativeResultInvalidCheck = validator('blah blah blah', APIValueSourceType.Body);
+        expect(negativeResultInvalidCheck.isSuccess).equal(false);
+        expect(negativeResultInvalidCheck.errorCode).equal(ValidationErrors.InvalidFormat);
+        let negativeResultInvalidTypeCheck = validator('123.256', APIValueSourceType.Body);
+        expect(negativeResultInvalidTypeCheck.isSuccess).equal(false);
+        expect(negativeResultInvalidTypeCheck.errorCode).equal(ValidationErrors.TypeMismatch);
+    });
+    it('Compile float validators', () => {
+        let validator = defineValidator({
+            valueType: APIValueType.Float,
+        }, {
+            required: true
+        });
+
+        let result = validator(12345, APIValueSourceType.Body);
+        expect(result.isSuccess).equal(true);
+        expect(result.value).equal(12345);
+        result = validator("123.256", APIValueSourceType.Body);
+        expect(result.isSuccess).equal(true);
+        expect(result.errorCode).equal(ValidationErrors.ValueCleanedUp);
+        expect(result.value).equal(123.256);
+        let negativeResultRequiredCheck = validator(null, APIValueSourceType.Body);
+        expect(negativeResultRequiredCheck.isSuccess).equal(false);
+        expect(negativeResultRequiredCheck.errorCode).equal(ValidationErrors.Required);
+        let negativeResultInvalidCheck = validator('blah blah blah', APIValueSourceType.Body);
+        expect(negativeResultInvalidCheck.isSuccess).equal(false);
+        expect(negativeResultInvalidCheck.errorCode).equal(ValidationErrors.InvalidFormat);
+    });
 });

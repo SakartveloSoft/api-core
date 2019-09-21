@@ -32,7 +32,8 @@ export enum ValidationErrorCodes  {
     TooShort = "tooShort",
     TooLong = "tooLong",
     TypeMismatch = "typeMismatch",
-    InvalidFormat = "invalidFormat"
+    InvalidFormat = "invalidFormat",
+    OutOfRange = "outOfRange"
 }
 
 let resultFactories = {
@@ -52,7 +53,10 @@ let resultFactories = {
         return new ValidationResult(ValidationErrorCodes.TypeMismatch,  undefined, valueSource, validationPath);
     },
     invalidFormat(invalidValue:any, expectedType: APIValueType, valueSource?: APIValueSourceType, validationPath?: string) {
-        return new ValidationResult(ValidationErrorCodes.InvalidFormat, invalidValue, valueSource, validationPath);
+        return new ValidationResult(ValidationErrorCodes.InvalidFormat, invalidValue, valueSource, validationPath, { expectedType: expectedType});
+    },
+    outOfRange(invalidValue: any, expectedType: APIValueType, valueSource?: APIValueSourceType, validationPath?: string, minValue?: any, maxValue?: any) {
+        return new ValidationResult(ValidationErrorCodes.OutOfRange, invalidValue, valueSource, validationPath, { min: minValue, max: maxValue });
     }
 };
 
@@ -168,6 +172,31 @@ let compiledCheckers = {
             }
             return resultFactories.cleanValue(value, valueSource, `${validationPath}/${valueName}`);
         }
+    },
+    ensureValidNumber(expectedSubType: APIValueType, minValue?:number, maxValue?: number) {
+        return (value: any, valueSource?: APIValueSourceType, valueName?: string, validationPath?: string):ValidationResult => {
+            let cleanValue: number;
+            if (validators.isNumber(value)) {
+                cleanValue = value;
+            } else if (validators.isString(value)) {
+                cleanValue = parseFloat(value);
+                if (isNaN(cleanValue) || cleanValue.toString() !== value) {
+                    return resultFactories.invalidFormat(value, expectedSubType, valueSource, `${validationPath}/${valueName}`);
+                }
+                if (expectedSubType === APIValueType.Integer && (Math.floor(cleanValue) !== cleanValue)) {
+                    return resultFactories.typeMismatch(expectedSubType, valueSource, `${validationPath}/${valueName}`);
+                }
+            } else {
+                return resultFactories.typeMismatch(expectedSubType, valueSource, `${validationPath}/${valueName}`);
+            }
+            if (validators.isNumber(minValue) && (cleanValue < minValue)) {
+                return resultFactories.outOfRange(value, expectedSubType, valueSource, `${validationPath}/${valueName}`, minValue, maxValue);
+            }
+            if (validators.isNumber(maxValue) && (cleanValue > maxValue)) {
+                return resultFactories.outOfRange(value, expectedSubType, valueSource, `${validationPath}/${valueName}`, minValue, maxValue);
+            }
+            return resultFactories.cleanValue(cleanValue, valueSource, `${validationPath}/${valueName}`);
+        };
     }
 };
 
@@ -231,6 +260,20 @@ export function compileValidator(typeSchema:IAPITypeSchema, validationRules: IAP
                 break;
             case APIValueType.Boolean:
                 functionCode.push(compiledCheckers.ensureBoolean);
+                break;
+            case APIValueType.Integer:
+            case APIValueType.Float:
+                let cleanMin: number;
+                let cleanMax: number;
+                if (validationRules) {
+                    if (validators.isNumber(validationRules.min)) {
+                        cleanMin = validationRules.min;
+                    }
+                    if (validators.isNumber(validationRules.max)) {
+                        cleanMax = validationRules.max;
+                    }
+                }
+                functionCode.push(compiledCheckers.ensureValidNumber(typeSchema.valueType, cleanMin, cleanMax));
                 break;
             case APIValueType.Date:
                 functionCode.push(compiledCheckers.ensureValidDate);
