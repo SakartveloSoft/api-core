@@ -33,30 +33,38 @@ export enum ValidationErrorCodes  {
     TooLong = "tooLong",
     TypeMismatch = "typeMismatch",
     InvalidFormat = "invalidFormat",
-    OutOfRange = "outOfRange"
+    OutOfRange = "outOfRange",
+    UnknownProperties = 'unknownProperties',
+    InvalidObject = 'invalidObject'
 }
 
 let resultFactories = {
     success : new ValidationResult(ValidationErrorCodes.Success),
     successValue: (value: any) => new ValidationResult(ValidationErrorCodes.Success, value),
     cleanValue:(value: any,  valueSource: APIValueSourceType, validationPath?: string) => new ValidationResult(ValidationErrorCodes.ValueCleanedUp, value, valueSource, validationPath),
-    valueRequired:(valueSource?: APIValueSourceType, validationPath?: string) => {
+    valueRequired:(valueSource?: APIValueSourceType, validationPath?: string):ValidationResult => {
         return new ValidationResult(ValidationErrorCodes.Required, undefined, valueSource, validationPath);
     },
-    tooShort: (minLength: number,valueSource?: APIValueSourceType, validationPath?: string) => {
+    tooShort: (minLength: number,valueSource?: APIValueSourceType, validationPath?: string):ValidationResult => {
         return new ValidationResult(ValidationErrorCodes.TooShort, undefined, valueSource, validationPath, { minLength: minLength});
     },
-    tooLong: (maxLength: number,valueSource?: APIValueSourceType, validationPath?: string) => {
+    tooLong: (maxLength: number,valueSource?: APIValueSourceType, validationPath?: string):ValidationResult => {
         return new ValidationResult(ValidationErrorCodes.TooLong, undefined, valueSource, validationPath, { maxLength: maxLength });
     },
-    typeMismatch(expectedType: APIValueType, valueSource?: APIValueSourceType, validationPath?: string) {
+    typeMismatch(expectedType: APIValueType, valueSource?: APIValueSourceType, validationPath?: string):ValidationResult {
         return new ValidationResult(ValidationErrorCodes.TypeMismatch,  undefined, valueSource, validationPath);
     },
-    invalidFormat(invalidValue:any, expectedType: APIValueType, valueSource?: APIValueSourceType, validationPath?: string) {
+    invalidFormat(invalidValue:any, expectedType: APIValueType, valueSource?: APIValueSourceType, validationPath?: string):ValidationResult {
         return new ValidationResult(ValidationErrorCodes.InvalidFormat, invalidValue, valueSource, validationPath, { expectedType: expectedType});
     },
-    outOfRange(invalidValue: any, expectedType: APIValueType, valueSource?: APIValueSourceType, validationPath?: string, minValue?: any, maxValue?: any) {
+    outOfRange(invalidValue: any, expectedType: APIValueType, valueSource?: APIValueSourceType, validationPath?: string, minValue?: any, maxValue?: any):ValidationResult {
         return new ValidationResult(ValidationErrorCodes.OutOfRange, invalidValue, valueSource, validationPath, { min: minValue, max: maxValue });
+    },
+    unknownProperties(valueSource?: APIValueSourceType, validationPath?: string, unknownProperties?: string[]):ValidationResult {
+        return new ValidationResult(ValidationErrorCodes.UnknownProperties, undefined, valueSource, validationPath, { unknownProperties: unknownProperties });
+    },
+    invalidObject(valueSource?: APIValueSourceType, validationPath?: string, validationErrors?: {[name: string] :ValidationResult }) {
+        return new ValidationResult(ValidationErrorCodes.InvalidObject, undefined, valueSource, validationPath, { errors: validationErrors });
     }
 };
 
@@ -197,6 +205,41 @@ let compiledCheckers = {
             }
             return resultFactories.cleanValue(cleanValue, valueSource, `${validationPath}/${valueName}`);
         };
+    },
+    ensureValidObject(objectSchema: IAPITypeSchema) {
+        let knownProperties = Object.keys(objectSchema.properties);
+        let compiledValidators: { [name: string]: CompiledValidatorFunction } = {};
+        for (let x = 0; x < knownProperties.length; x++) {
+            let name = knownProperties[x];
+            let prop = objectSchema.properties[name];
+            compiledValidators[name] = compileValidator(prop.valueType, prop);
+        }
+        return (value: any, valueSource?: APIValueSourceType, valueName?: string, validationPath?: string): ValidationResult => {
+            let validationErrors: { [name: string]: ValidationResult } = {};
+            let hasErrors = false;
+            let unknownProperties: string[] = [];
+            for (let name in value) {
+                if (value.hasOwnProperty(name)) {
+                    if (compiledValidators.hasOwnProperty(name)) {
+                        let propResult = compiledValidators[name](value[name], valueSource, `${validationPath}/${valueName}/${name}`);
+                        if (propResult.errorCode === ValidationErrorCodes.ValueCleanedUp) {
+                            value[name] = propResult.value;
+                        } else if (!propResult.isSuccess) {
+                            hasErrors = true;
+                            validationErrors[name] = propResult;
+                        }
+                    } else {
+                        unknownProperties.push(name);
+                    }
+                }
+            }
+            if (hasErrors) {
+                return resultFactories.invalidObject(valueSource, `${validationPath}/${valueName}`, validationErrors);
+            }
+            if (unknownProperties.length > 0) {
+                return resultFactories.unknownProperties(valueSource, `${validationPath}/${valueName}`, unknownProperties);
+            }
+        };
     }
 };
 
@@ -277,6 +320,9 @@ export function compileValidator(typeSchema:IAPITypeSchema, validationRules: IAP
                 break;
             case APIValueType.Date:
                 functionCode.push(compiledCheckers.ensureValidDate);
+                break;
+            case APIValueType.Object:
+                functionCode.push(compiledCheckers.ensureValidObject(typeSchema));
                 break;
             default:
                 throw new Error(`Support for validation of ${typeSchema.valueType} values is not ready`);

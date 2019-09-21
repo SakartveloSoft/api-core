@@ -1,4 +1,4 @@
-import {defineValidator, ValidationErrors } from '../src';
+import {defineValidator, ValidationErrors} from '../src';
 import {APIValueSourceType, APIValueType} from "../src/api-interfaces";
 import {expect} from 'chai';
 
@@ -83,5 +83,34 @@ describe('Test validator compilation',() => {
         let negativeResultInvalidCheck = validator('blah blah blah', APIValueSourceType.Body);
         expect(negativeResultInvalidCheck.isSuccess).equal(false);
         expect(negativeResultInvalidCheck.errorCode).equal(ValidationErrors.InvalidFormat);
+    });
+    it('Compile object validator', () => {
+       let validator = defineValidator({
+           valueType: APIValueType.Object,
+           properties: {
+               userName: {
+                   valueType: {
+                       valueType: APIValueType.String,
+                   },
+                   minLength: 3,
+                   required: true,
+               },
+               password: {
+                   valueType: {
+                       valueType: APIValueType.String,
+                   },
+                   minLength: 8,
+                   required: true,
+               },
+               rememberMe: {
+                   valueType: {
+                       valueType: APIValueType.Boolean
+                   },
+                   defaultValue: false
+               }
+           }
+       }, null);
+       let positiveResult = validator({ userName: 'test', password: "GUID-t3st", rememberMe: true }, APIValueSourceType.Body);
+       expect(positiveResult.isSuccess).equal(true);
     });
 });

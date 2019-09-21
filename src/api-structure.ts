@@ -15,6 +15,7 @@ export class APITypeSchema implements IAPITypeSchema {
     public hasChoices: boolean;
     public itemsType: APITypeSchema;
     public properties: {[name: string]: APIPropertyDescriptor};
+    public preventExtraProperties: boolean;
     constructor(definition: IAPITypeSchema) {
         this.valueType = definition.valueType || APIValueType.String;
         this.choiceList = definition.choiceList ? definition.choiceList.map(subDef => new APIChoiceOption(subDef)) : null;
@@ -29,6 +30,7 @@ export class APITypeSchema implements IAPITypeSchema {
                 this.properties[name] = new APIPropertyDescriptor(name, definition.properties[name]);
             }
         }
+        this.preventExtraProperties = !!definition.preventExtraProperties;
     }
 }
 

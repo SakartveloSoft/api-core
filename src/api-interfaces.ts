@@ -36,6 +36,7 @@ export interface IAPITypeSchema {
     choiceList?: IAPIChoiceOption[]|null;
     itemsType?: IAPITypeSchema|null;
     properties?:{[name:string]:IAPIPropertyDescriptor };
+    preventExtraProperties?: boolean;
 }
 
 export enum APIValueSourceType {
