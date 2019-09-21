@@ -23,6 +23,7 @@ class APITypeSchema {
                 this.properties[name] = new APIPropertyDescriptor(name, definition.properties[name]);
             }
         }
+        this.preventExtraProperties = !!definition.preventExtraProperties;
     }
 }
 exports.APITypeSchema = APITypeSchema;
