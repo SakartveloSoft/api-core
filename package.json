@@ -11,6 +11,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@types/path-to-regexp": "^1.7.0",
     "sift": "^8.5.0",
     "ts-node": "^8.3.0",
     "typescript": "^3.6.3"
