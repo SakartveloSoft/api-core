@@ -37,7 +37,7 @@ class APIPropertyDescriptor extends APIValidableElement {
         super(definition);
         this.name = name || definition.name || '';
         this.isMapName = definition.isMapName || false;
-        this.valueType = new APITypeSchema(definition.valueType);
+        this.valueSchema = new APITypeSchema(definition.valueType);
         this.defaultValue = definition.defaultValue === undefined ? null : definition.defaultValue;
     }
 }
@@ -46,7 +46,7 @@ class APIParameter extends APIValidableElement {
         super(definition);
         this.name = definition.name;
         this.sourceType = definition.sourceType || api_interfaces_1.APIValueSourceType.Route;
-        this.valueType = definition.valueType ? new APITypeSchema(definition.valueType) : new APITypeSchema({ valueType: api_interfaces_1.APIValueType.Any });
+        this.valueSchema = definition.valueType ? new APITypeSchema(definition.valueType) : new APITypeSchema({ valueType: api_interfaces_1.APIValueType.Any });
     }
 }
 class APIGroup {

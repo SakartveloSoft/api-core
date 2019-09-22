@@ -1,4 +1,5 @@
 import { APIValueSourceType, IAPITypeSchema, IAPIValidationRules } from "./api-interfaces";
+import { APITypesResolver } from './api-structure';
 export declare class ValidationResult {
     validationPath: string;
     errorCode: string;
@@ -21,6 +22,6 @@ export declare enum ValidationErrorCodes {
     InvalidObject = "invalidObject"
 }
 declare type CompiledValidatorFunction = (value: any, valueSource: APIValueSourceType, valueName?: string) => ValidationResult;
-export declare function compileValidator(typeSchema: IAPITypeSchema, validationRules: IAPIValidationRules): CompiledValidatorFunction;
+export declare function compileValidator(typeSchema: IAPITypeSchema, validationRules: IAPIValidationRules, typesResolver?: APITypesResolver): CompiledValidatorFunction;
 export {};
 //# sourceMappingURL=request-validator.d.ts.map

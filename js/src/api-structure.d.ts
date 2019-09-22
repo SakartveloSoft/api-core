@@ -1,19 +1,28 @@
-import { IAPIChoiceOption, IAPITypeSchema, IAPIValidationRules, IAPIParameter, APIValueSourceType, IAPIPropertyDescriptor, APIValueType, IAPIRoute, IAPIModuleEntryDefinition, APIModuleCreationMethod, IAPINode, HttpVerb, IAPIGroup, IAPIStructure } from './api-interfaces';
+import { APIModuleCreationMethod, APIValueSourceType, APIValueType, HttpVerb, IAPIChoiceOption, IAPIGroup, IAPIModuleEntryDefinition, IAPINode, IAPIParameter, IAPIPropertyDescriptor, IAPIRoute, IAPIStructure, IAPITypeSchema, IAPITypesResolver, IAPIValidationRules } from './api-interfaces';
+export declare class APITypesResolver implements IAPITypesResolver {
+    private _typesMap;
+    constructor();
+    resolveType(typeAlias: string): APITypeSchema;
+    addTypeByDefinition(alias: string, definition: IAPITypeSchema): APITypeSchema;
+    addOrResolveTypeSchemaForCollection(typeAlias?: string, typeSchema?: IAPITypeSchema): APITypeSchema;
+}
 export declare class APIChoiceOption implements IAPIChoiceOption {
     label: string;
     value: (string | number | boolean | Date | null);
     constructor(definition: IAPIChoiceOption);
 }
 export declare class APITypeSchema implements IAPITypeSchema {
+    typeAlias: string;
     valueType: APIValueType;
     choiceList?: APIChoiceOption[];
     hasChoices: boolean;
     itemsType: APITypeSchema;
+    itemsTypeAlias?: string;
     properties: {
         [name: string]: APIPropertyDescriptor;
     };
     preventExtraProperties: boolean;
-    constructor(definition: IAPITypeSchema);
+    constructor(definition: IAPITypeSchema, typesResolver: APITypesResolver);
 }
 export declare class APIValidableElement implements IAPIValidationRules {
     required: boolean;
@@ -25,15 +34,16 @@ export declare class APIValidableElement implements IAPIValidationRules {
 export declare class APIPropertyDescriptor extends APIValidableElement implements IAPIPropertyDescriptor {
     name: string;
     isMapName: boolean;
-    valueType: APITypeSchema;
+    valueSchema: APITypeSchema;
+    valueSchemaAlias: string;
     defaultValue: any;
-    constructor(name: string, definition: IAPIPropertyDescriptor);
+    constructor(name: string, definition: IAPIPropertyDescriptor, typesResolver: APITypesResolver);
 }
 export declare class APIParameter extends APIValidableElement implements IAPIParameter {
     name?: string;
     sourceType: APIValueSourceType;
-    valueType: APITypeSchema;
-    constructor(definition: IAPIParameter);
+    valueSchema: APITypeSchema;
+    constructor(definition: IAPIParameter, typesResolver: APITypesResolver);
 }
 export declare class APIGroup implements IAPIGroup {
     name: string;
@@ -42,7 +52,7 @@ export declare class APIGroup implements IAPIGroup {
     action?: string;
     groups?: APIGroup[];
     routes?: APIRoute[];
-    constructor(parent: IAPINode, definition: IAPIGroup);
+    constructor(parent: IAPINode, definition: IAPIGroup, typesResolver: APITypesResolver);
 }
 export declare class APIRoute implements IAPIRoute {
     name: string;
@@ -58,7 +68,7 @@ export declare class APIRoute implements IAPIRoute {
         [name: string]: APITypeSchema;
     };
     hasParameters: boolean;
-    constructor(parent: IAPINode, definition: IAPIRoute);
+    constructor(parent: IAPINode, definition: IAPIRoute, typesResolver: APITypesResolver);
 }
 export declare class APIModuleEntry implements IAPIModuleEntryDefinition {
     private api;
@@ -68,7 +78,7 @@ export declare class APIModuleEntry implements IAPIModuleEntryDefinition {
     singleton: boolean;
     constructor(api: APIStructure, name: string, definition: IAPIModuleEntryDefinition);
 }
-export declare class APIStructure implements IAPIStructure {
+export declare class APIStructure {
     name: string;
     pathRoot: string;
     version: string;
@@ -81,7 +91,8 @@ export declare class APIStructure implements IAPIStructure {
     modules: {
         [name: string]: APIModuleEntry;
     };
+    private _types;
     constructor(definition: IAPIStructure);
 }
-export declare function defineAPIStructure(definition: IAPIStructure): APIStructure;
+export declare function defineAPIStructure(definition: IAPIStructure | any): APIStructure;
 //# sourceMappingURL=api-structure.d.ts.map

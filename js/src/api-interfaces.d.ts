@@ -24,17 +24,23 @@ export interface IAPIValidationRules {
 export interface IAPIPropertyDescriptor extends IAPIValidationRules {
     name?: string;
     isMapName?: boolean;
-    valueType: IAPITypeSchema;
+    valueSchema?: IAPITypeSchema;
+    valueSchemaAlias?: string;
     defaultValue?: any;
 }
 export interface IAPITypeSchema {
+    typeAlias?: string;
     valueType: APIValueType;
     choiceList?: IAPIChoiceOption[] | null;
     itemsType?: IAPITypeSchema | null;
+    itemsTypeAlias?: string;
     properties?: {
         [name: string]: IAPIPropertyDescriptor;
     };
     preventExtraProperties?: boolean;
+}
+export interface IAPITypesResolver {
+    resolveType(typeAlias: string): IAPITypeSchema;
 }
 export declare enum APIValueSourceType {
     Route = "route",
@@ -46,7 +52,8 @@ export declare enum APIValueSourceType {
 export interface IAPIParameter extends IAPIValidationRules {
     name?: string;
     sourceType: APIValueSourceType;
-    valueType: IAPITypeSchema;
+    valueSchema: IAPITypeSchema;
+    valueSchemaAlias?: string;
 }
 export declare enum HttpVerb {
     GET = "GET",
@@ -68,8 +75,9 @@ export interface IAPIRoute extends IAPINode {
     routeTemplate: string;
     parameters?: IAPIParameter[];
     responseType?: IAPITypeSchema;
+    responseTypeAlias?: string;
     errorTypes?: {
-        [status: number]: IAPITypeSchema;
+        [status: number]: IAPITypeSchema | string;
     };
 }
 export interface IAPIGroup extends IAPINode {
@@ -91,6 +99,9 @@ export interface IAPIStructure extends IAPIGroup {
     version: string;
     modules: {
         [name: string]: IAPIModuleEntryDefinition;
+    };
+    types: {
+        [name: string]: IAPITypeSchema;
     };
     defaultResponseType: IAPITypeSchema;
     errorTypes: {

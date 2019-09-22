@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const api_interfaces_1 = require("./api-interfaces");
+const api_structure_1 = require("./api-structure");
 class ValidationResult {
     constructor(errorCode, value, valueSource, validationPath, options) {
         this.validationPath = null;
@@ -209,13 +210,16 @@ let compiledCheckers = {
             return resultFactories.cleanValue(cleanValue, valueSource, `${validationPath}/${valueName}`);
         };
     },
-    ensureValidObject(objectSchema) {
+    ensureValidObject(objectSchema, typesResolver) {
         let knownProperties = Object.keys(objectSchema.properties);
         let compiledValidators = {};
         for (let x = 0; x < knownProperties.length; x++) {
             let name = knownProperties[x];
             let prop = objectSchema.properties[name];
-            compiledValidators[name] = compileValidator(prop.valueType, prop);
+            if (prop.valueSchemaAlias && !prop.valueSchema) {
+                prop.valueSchema = typesResolver.resolveType(prop.valueSchemaAlias);
+            }
+            compiledValidators[name] = compileValidator(prop.valueSchema, prop);
         }
         return (value, valueSource, valueName, validationPath) => {
             let validationErrors = {};
@@ -276,10 +280,13 @@ function makeValidatorFunction(checksList) {
         return resultFactories.successValue(value);
     };
 }
-function compileValidator(typeSchema, validationRules) {
+function compileValidator(typeSchema, validationRules, typesResolver) {
     let validatorKey = JSON.stringify(typeSchema) + '\r\n' + JSON.stringify(validationRules);
     let validatorFunc = validatorsCache[validatorKey];
     if (!validatorFunc) {
+        if (!typesResolver) {
+            typesResolver = new api_structure_1.APITypesResolver();
+        }
         let functionCode = [];
         if (validationRules && validationRules.required) {
             functionCode.push(compiledCheckers.required);
@@ -325,7 +332,7 @@ function compileValidator(typeSchema, validationRules) {
                 functionCode.push(compiledCheckers.ensureValidDate);
                 break;
             case api_interfaces_1.APIValueType.Object:
-                functionCode.push(compiledCheckers.ensureValidObject(typeSchema));
+                functionCode.push(compiledCheckers.ensureValidObject(typeSchema, typesResolver));
                 break;
             default:
                 throw new Error(`Support for validation of ${typeSchema.valueType} values is not ready`);

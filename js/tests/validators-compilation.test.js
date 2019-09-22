@@ -86,21 +86,21 @@ describe('Test validator compilation', () => {
             valueType: api_interfaces_1.APIValueType.Object,
             properties: {
                 userName: {
-                    valueType: {
+                    valueSchema: {
                         valueType: api_interfaces_1.APIValueType.String,
                     },
                     minLength: 3,
                     required: true,
                 },
                 password: {
-                    valueType: {
+                    valueSchema: {
                         valueType: api_interfaces_1.APIValueType.String,
                     },
                     minLength: 8,
                     required: true,
                 },
                 rememberMe: {
-                    valueType: {
+                    valueSchema: {
                         valueType: api_interfaces_1.APIValueType.Boolean
                     },
                     defaultValue: false
@@ -109,6 +109,31 @@ describe('Test validator compilation', () => {
         }, null);
         let positiveResult = validator({ userName: 'test', password: "GUID-t3st", rememberMe: true }, api_interfaces_1.APIValueSourceType.Body);
         chai_1.expect(positiveResult.isSuccess).equal(true);
+    });
+    it('Compile type validator by aliases', () => {
+        let validator = src_1.defineValidator({
+            valueType: api_interfaces_1.APIValueType.Object,
+            properties: {
+                userName: {
+                    valueSchemaAlias: api_interfaces_1.APIValueType.String,
+                    minLength: 3,
+                    required: true,
+                },
+                password: {
+                    valueSchemaAlias: api_interfaces_1.APIValueType.String,
+                    minLength: 8,
+                    required: true,
+                },
+                rememberMe: {
+                    valueSchemaAlias: api_interfaces_1.APIValueType.Boolean,
+                    defaultValue: false
+                }
+            }
+        }, null);
+        let positiveResult = validator({ userName: 'test', password: "GUID-t3st", rememberMe: true }, api_interfaces_1.APIValueSourceType.Body);
+        chai_1.expect(positiveResult.isSuccess).equal(true);
+        chai_1.expect(positiveResult.value).an('object');
+        chai_1.expect(positiveResult.value.rememberMe).equal(true);
     });
 });
 //# sourceMappingURL=validators-compilation.test.js.map
