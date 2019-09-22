@@ -1,11 +1,11 @@
-import {definePIStructure} from '../src';
+import {loadAPIStructureFromJSON} from '../src';
 import {expect} from 'chai';
 import {APIModuleCreationMethod, APIValueType} from "../src/api-interfaces";
 import {APIModuleEntry} from "../src/api-structure";
 
 describe('Tests for API structure generation from parsed JSON', function () {
     it('Create empty structure without nodes', () => {
-        let structure = definePIStructure({
+        let structure = loadAPIStructureFromJSON({
             name: 'Test API',
             version:'1.0.0',
             pathRoot: '/api/',
@@ -18,7 +18,7 @@ describe('Tests for API structure generation from parsed JSON', function () {
     });
 
     it('Create empty structure without nodes', () => {
-        let structure = definePIStructure({
+        let structure = loadAPIStructureFromJSON({
             name: 'Test API',
             version:'1.0.0',
             pathRoot: '/api/',
@@ -34,7 +34,7 @@ describe('Tests for API structure generation from parsed JSON', function () {
     });
 
     it('define API with group', () => {
-        let structure = definePIStructure({
+        let structure = loadAPIStructureFromJSON({
             name: 'API Test',
             version: '1.0.0',
             pathRoot: '/',
@@ -43,7 +43,7 @@ describe('Tests for API structure generation from parsed JSON', function () {
             defaultResponseType: {
                 valueType: APIValueType.Object,
                 properties: {
-                    "message": { valueType: { valueType: APIValueType.String }, required: true, defaultValue: 'Operation completed successfully', isMapName: false }
+                    "message": { valueSchema: { valueType: APIValueType.String }, required: true, defaultValue: 'Operation completed successfully', isMapName: false }
                 }
             }
         });

@@ -1,4 +1,11 @@
-import {APIValueSourceType, APIValueType, IAPITypeSchema, IAPIValidationRules} from "./api-interfaces";
+import {
+    APIValueSourceType,
+    APIValueType,
+    IAPITypeSchema,
+    IAPIValidationRules
+} from "./api-interfaces";
+
+import { APITypesResolver } from './api-structure';
 
 export class ValidationResult {
     public validationPath:string = null;
@@ -206,13 +213,16 @@ let compiledCheckers = {
             return resultFactories.cleanValue(cleanValue, valueSource, `${validationPath}/${valueName}`);
         };
     },
-    ensureValidObject(objectSchema: IAPITypeSchema) {
+    ensureValidObject(objectSchema: IAPITypeSchema, typesResolver:APITypesResolver) {
         let knownProperties = Object.keys(objectSchema.properties);
         let compiledValidators: { [name: string]: CompiledValidatorFunction } = {};
         for (let x = 0; x < knownProperties.length; x++) {
             let name = knownProperties[x];
             let prop = objectSchema.properties[name];
-            compiledValidators[name] = compileValidator(prop.valueType, prop);
+            if (prop.valueSchemaAlias && !prop.valueSchema) {
+                prop.valueSchema = typesResolver.resolveType(prop.valueSchemaAlias);
+            }
+            compiledValidators[name] = compileValidator(prop.valueSchema, prop);
         }
         return (value: any, valueSource?: APIValueSourceType, valueName?: string, validationPath?: string): ValidationResult => {
             let validationErrors: { [name: string]: ValidationResult } = {};
@@ -275,10 +285,13 @@ function makeValidatorFunction(checksList: ValidationCheckFunction[]): CompiledV
     }
 }
 
-export function compileValidator(typeSchema:IAPITypeSchema, validationRules: IAPIValidationRules):CompiledValidatorFunction {
+export function compileValidator(typeSchema:IAPITypeSchema, validationRules: IAPIValidationRules, typesResolver?: APITypesResolver):CompiledValidatorFunction {
     let validatorKey = JSON.stringify(typeSchema) + '\r\n' + JSON.stringify(validationRules);
     let validatorFunc = validatorsCache[validatorKey];
     if (!validatorFunc) {
+        if (!typesResolver) {
+            typesResolver = new APITypesResolver();
+        }
         let functionCode: ValidationCheckFunction[] = [];
         if (validationRules && validationRules.required) {
             functionCode.push(compiledCheckers.required)
@@ -322,7 +335,7 @@ export function compileValidator(typeSchema:IAPITypeSchema, validationRules: IAP
                 functionCode.push(compiledCheckers.ensureValidDate);
                 break;
             case APIValueType.Object:
-                functionCode.push(compiledCheckers.ensureValidObject(typeSchema));
+                functionCode.push(compiledCheckers.ensureValidObject(typeSchema, typesResolver));
                 break;
             default:
                 throw new Error(`Support for validation of ${typeSchema.valueType} values is not ready`);

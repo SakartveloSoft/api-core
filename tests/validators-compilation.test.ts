@@ -63,6 +63,7 @@ describe('Test validator compilation',() => {
         expect(negativeResultInvalidTypeCheck.isSuccess).equal(false);
         expect(negativeResultInvalidTypeCheck.errorCode).equal(ValidationErrors.TypeMismatch);
     });
+
     it('Compile float validators', () => {
         let validator = defineValidator({
             valueType: APIValueType.Float,
@@ -84,26 +85,27 @@ describe('Test validator compilation',() => {
         expect(negativeResultInvalidCheck.isSuccess).equal(false);
         expect(negativeResultInvalidCheck.errorCode).equal(ValidationErrors.InvalidFormat);
     });
+
     it('Compile object validator', () => {
        let validator = defineValidator({
            valueType: APIValueType.Object,
            properties: {
                userName: {
-                   valueType: {
+                   valueSchema: {
                        valueType: APIValueType.String,
                    },
                    minLength: 3,
                    required: true,
                },
                password: {
-                   valueType: {
+                   valueSchema: {
                        valueType: APIValueType.String,
                    },
                    minLength: 8,
                    required: true,
                },
                rememberMe: {
-                   valueType: {
+                   valueSchema: {
                        valueType: APIValueType.Boolean
                    },
                    defaultValue: false
@@ -113,4 +115,31 @@ describe('Test validator compilation',() => {
        let positiveResult = validator({ userName: 'test', password: "GUID-t3st", rememberMe: true }, APIValueSourceType.Body);
        expect(positiveResult.isSuccess).equal(true);
     });
+
+    it('Compile type validator by aliases', () => {
+        let validator = defineValidator({
+            valueType: APIValueType.Object,
+            properties: {
+                userName: {
+                    valueSchemaAlias: APIValueType.String,
+                    minLength: 3,
+                    required: true,
+                },
+                password: {
+                    valueSchemaAlias: APIValueType.String,
+                    minLength: 8,
+                    required: true,
+                },
+                rememberMe: {
+                    valueSchemaAlias: APIValueType.Boolean,
+                    defaultValue: false
+                }
+            }
+        }, null);
+        let positiveResult = validator({ userName: 'test', password: "GUID-t3st", rememberMe: true }, APIValueSourceType.Body);
+        expect(positiveResult.isSuccess).equal(true);
+        expect(positiveResult.value).an('object');
+        expect(positiveResult.value.rememberMe).equal(true);
+    });
+
 });
