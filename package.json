@@ -3,8 +3,10 @@
   "version": "1.0.0",
   "description": "api-core",
   "main": "js/index.js",
+  "types": "js/index.d.ts",
   "scripts": {
     "build": "tsc ",
+    "prepublish": "tsc",
     "test": "mocha --require ts-node/register --watch-extensions ts,tsx \"tests/**/*.{ts,tsx}\""
   },
   "keywords": [],
