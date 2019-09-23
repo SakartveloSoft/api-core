@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const api_interfaces_1 = require("./api-interfaces");
+const definition_interfaces_1 = require("./definition-interfaces");
 const api_structure_1 = require("./api-structure");
 class ValidationResult {
     constructor(errorCode, value, valueSource, validationPath, options) {
@@ -149,7 +149,7 @@ let compiledCheckers = {
             cleanValue = false;
         }
         else {
-            return resultFactories.typeMismatch(api_interfaces_1.APIValueType.Boolean, valueSource, `${validationPath}/${valueName}`);
+            return resultFactories.typeMismatch(definition_interfaces_1.APIValueType.Boolean, valueSource, `${validationPath}/${valueName}`);
         }
         return resultFactories.cleanValue(cleanValue, valueSource, `${validationPath}/${valueName}`);
     },
@@ -164,14 +164,14 @@ let compiledCheckers = {
                 cleanValue = new Date(value.toString().trim().toLowerCase());
             }
             catch (e) {
-                return resultFactories.typeMismatch(api_interfaces_1.APIValueType.Date, valueSource, `${validationPath}/${valueName}`);
+                return resultFactories.typeMismatch(definition_interfaces_1.APIValueType.Date, valueSource, `${validationPath}/${valueName}`);
             }
             if (cleanValue.toString() === "Invalid Date") {
-                return resultFactories.invalidFormat(value, api_interfaces_1.APIValueType.Date, valueSource, `${validationPath}/${valueName}`);
+                return resultFactories.invalidFormat(value, definition_interfaces_1.APIValueType.Date, valueSource, `${validationPath}/${valueName}`);
             }
         }
         else {
-            return resultFactories.typeMismatch(api_interfaces_1.APIValueType.Date, valueSource, `${validationPath}/${valueName}`);
+            return resultFactories.typeMismatch(definition_interfaces_1.APIValueType.Date, valueSource, `${validationPath}/${valueName}`);
         }
         if (value === cleanValue) {
             return resultFactories.successValue(cleanValue);
@@ -194,7 +194,7 @@ let compiledCheckers = {
                 if (isNaN(cleanValue) || cleanValue.toString() !== value) {
                     return resultFactories.invalidFormat(value, expectedSubType, valueSource, `${validationPath}/${valueName}`);
                 }
-                if (expectedSubType === api_interfaces_1.APIValueType.Integer && (Math.floor(cleanValue) !== cleanValue)) {
+                if (expectedSubType === definition_interfaces_1.APIValueType.Integer && (Math.floor(cleanValue) !== cleanValue)) {
                     return resultFactories.typeMismatch(expectedSubType, valueSource, `${validationPath}/${valueName}`);
                 }
             }
@@ -292,7 +292,7 @@ function compileValidator(typeSchema, validationRules, typesResolver) {
             functionCode.push(compiledCheckers.required);
         }
         switch (typeSchema.valueType) {
-            case api_interfaces_1.APIValueType.String:
+            case definition_interfaces_1.APIValueType.String:
                 functionCode.push(compiledCheckers.ensureString);
                 if (validationRules.required) {
                     functionCode.push(compiledCheckers.ensureStringNotBlank);
@@ -311,11 +311,11 @@ function compileValidator(typeSchema, validationRules, typesResolver) {
                     functionCode.push(compiledCheckers.ensureStringLengthRange(cleanLimits.minLength, cleanLimits.maxLength));
                 }
                 break;
-            case api_interfaces_1.APIValueType.Boolean:
+            case definition_interfaces_1.APIValueType.Boolean:
                 functionCode.push(compiledCheckers.ensureBoolean);
                 break;
-            case api_interfaces_1.APIValueType.Integer:
-            case api_interfaces_1.APIValueType.Float:
+            case definition_interfaces_1.APIValueType.Integer:
+            case definition_interfaces_1.APIValueType.Float:
                 let cleanMin;
                 let cleanMax;
                 if (validationRules) {
@@ -328,10 +328,10 @@ function compileValidator(typeSchema, validationRules, typesResolver) {
                 }
                 functionCode.push(compiledCheckers.ensureValidNumber(typeSchema.valueType, cleanMin, cleanMax));
                 break;
-            case api_interfaces_1.APIValueType.Date:
+            case definition_interfaces_1.APIValueType.Date:
                 functionCode.push(compiledCheckers.ensureValidDate);
                 break;
-            case api_interfaces_1.APIValueType.Object:
+            case definition_interfaces_1.APIValueType.Object:
                 functionCode.push(compiledCheckers.ensureValidObject(typeSchema, typesResolver));
                 break;
             default:

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const api_interfaces_1 = require("./api-interfaces");
+const definition_interfaces_1 = require("./definition-interfaces");
 class APITypesResolver {
     constructor() {
         this._typesMap = {};
@@ -61,7 +61,7 @@ exports.APIChoiceOption = APIChoiceOption;
 class APITypeSchema {
     constructor(definition, typesResolver) {
         this.typeAlias = definition.typeAlias || null;
-        this.valueType = definition.valueType || api_interfaces_1.APIValueType.String;
+        this.valueType = definition.valueType || definition_interfaces_1.APIValueType.String;
         this.choiceList = definition.choiceList ? definition.choiceList.map(subDef => new APIChoiceOption(subDef)) : null;
         this.hasChoices = !!(this.choiceList && this.choiceList.length);
         this.itemsTypeAlias = definition.itemsTypeAlias;
@@ -71,7 +71,7 @@ class APITypeSchema {
         else if (definition.itemsType) {
             this.itemsType = definition.itemsType.typeAlias ? typesResolver.addTypeByDefinition(definition.itemsType.typeAlias, definition) : new APITypeSchema(definition.itemsType, typesResolver);
         }
-        if (this.valueType === api_interfaces_1.APIValueType.Array && !this.itemsType) {
+        if (this.valueType === definition_interfaces_1.APIValueType.Array && !this.itemsType) {
             this.itemsType = typesResolver.resolveType('any');
         }
         this.properties = {};
@@ -87,27 +87,27 @@ exports.APITypeSchema = APITypeSchema;
 const PredefinedTypes = {
     any: new APITypeSchema({
         typeAlias: 'any',
-        valueType: api_interfaces_1.APIValueType.Any
+        valueType: definition_interfaces_1.APIValueType.Any
     }, null),
     string: new APITypeSchema({
         typeAlias: 'string',
-        valueType: api_interfaces_1.APIValueType.String,
+        valueType: definition_interfaces_1.APIValueType.String,
     }, null),
     boolean: new APITypeSchema({
         typeAlias: 'boolean',
-        valueType: api_interfaces_1.APIValueType.Boolean,
+        valueType: definition_interfaces_1.APIValueType.Boolean,
     }, null),
     datetime: new APITypeSchema({
         typeAlias: 'datetime',
-        valueType: api_interfaces_1.APIValueType.Date,
+        valueType: definition_interfaces_1.APIValueType.Date,
     }, null),
     integer: new APITypeSchema({
         typeAlias: 'integer',
-        valueType: api_interfaces_1.APIValueType.Integer,
+        valueType: definition_interfaces_1.APIValueType.Integer,
     }, null),
     float: new APITypeSchema({
         typeAlias: 'float',
-        valueType: api_interfaces_1.APIValueType.Float,
+        valueType: definition_interfaces_1.APIValueType.Float,
     }, null),
 };
 class APIValidableElement {
@@ -134,7 +134,7 @@ class APIParameter extends APIValidableElement {
     constructor(definition, typesResolver) {
         super(definition);
         this.name = definition.name;
-        this.sourceType = definition.sourceType || api_interfaces_1.APIValueSourceType.Route;
+        this.sourceType = definition.sourceType || definition_interfaces_1.APIValueSourceType.Route;
         this.valueSchema = typesResolver.addOrResolveTypeSchemaForCollection(definition.valueSchemaAlias, definition.valueSchema);
     }
 }
@@ -156,7 +156,7 @@ class APIRoute {
         this.name = definition.name;
         this.routeTemplate = definition.routeTemplate || '';
         this.routePrefix = definition.routePrefix || parent.routePrefix || '';
-        this.verb = definition.verb || api_interfaces_1.HttpVerb.GET;
+        this.verb = definition.verb || definition_interfaces_1.HttpVerb.GET;
         this.controller = definition.controller || parent.controller;
         this.action = definition.action;
         this.parameters = definition.parameters ? definition.parameters.map(paramDef => new APIParameter(paramDef, typesResolver)) : null;
@@ -190,7 +190,7 @@ class APIModuleEntry {
         this.api = api;
         this.name = name;
         this.path = definition.path;
-        this.creationMethod = definition.creationMethod || api_interfaces_1.APIModuleCreationMethod.ConstructorCall;
+        this.creationMethod = definition.creationMethod || definition_interfaces_1.APIModuleCreationMethod.ConstructorCall;
         this.singleton = definition.singleton || false;
     }
 }
