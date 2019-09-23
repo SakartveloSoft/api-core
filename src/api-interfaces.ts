@@ -1,4 +1,3 @@
-import {URL} from "url";
 
 export enum APIValueType {
     Any= "any",
@@ -124,18 +123,18 @@ export interface IAPIRequestQuery {
 }
 
 export interface IAPIHeaders {
-    values: {[name: string]: string|string[]};
+    headers: {[name: string]: string|string[]};
     getContentType(): string;
+    setContentType(contentType: string): IAPIHeaders;
     getContentLength():number;
     setContentLength(length:number): IAPIHeaders;
 }
 
 export interface IAPIRequestHeaders extends IAPIHeaders {
-    Authorization: string;
+    authorization: string;
 }
 
 export interface IAPIResponseHeaders extends IAPIHeaders {
-
 }
 
 export interface IHttpFormData {
@@ -157,7 +156,7 @@ export interface IAPIUserReference {
     roles: {[name: string]: boolean }
 }
 
-type IAPIRouteParameters = { [name: string]:any };
+export type IAPIRouteParameters = { [name: string]:any };
 
 export interface IAPIRequest extends IAPIRequestHeaders {
     method: HttpVerb;
@@ -174,6 +173,9 @@ export interface IAPIRequest extends IAPIRequestHeaders {
     getBinaryBody():Buffer;
     getFormValues():IHttpFormData;
     user: IAPIUserReference;
+    setBodyToBuffer(body:Buffer): IAPIRequest;
+    setBodyToJSON(parsedBody:Object): IAPIRequest;
+    setBodyToModel<T>(parsedBody: T):IAPIRequest;
 
 }
 
@@ -193,29 +195,42 @@ export enum HttpStatusCode {
 }
 
 export interface IAPIResponse extends IAPIResponseHeaders {
+    status?: HttpStatusCode;
     headersSent: boolean;
-    writeBuffer(data: Buffer): Promise<IAPIResponse>;
-    writeString(text: string): Promise<IAPIResponse>;
-    end():Promise<void>;
+    body: any;
+}
+
+export enum APIResultAction {
+    Done = "done",
+    CallNext = "callNext",
+    SendHeadersOnly = 'sendHeadersOnly',
+    ReportError = "error",
+    SendJSON = "sendJSON",
+    SendHtml = "sendHtml",
+    SendBuffer = "sendBuffer",
+    SendStream = "sendStream"
 }
 
 export interface IAPIResult {
-    isAsync: boolean;
-    executeInstantProcessing(response: IAPIResponse):void;
+    action: APIResultAction;
 }
 
-export interface IAPIAsyncResult extends IAPIResult{
-    executeAsyncProcessing(): Promise<void>;
+export interface IAPIError {
+    message: string;
+    stack: string;
+    details?: Object
 }
 
-export interface IAPIResponder {
+export interface IAPIResponder extends IAPIResult, IAPIResponse {
+    done(): Promise<IAPIResult>;
     next(): Promise<IAPIResult>;
     json(value: any): Promise<IAPIResult>;
     buffer(content: Buffer, contentType?: string): Promise<IAPIResult>;
-    html(content: string): Promise<IAPIResponse>;
+    html(content: string): Promise<IAPIResult>;
     redirect(url:string, permanent?: boolean): Promise<IAPIResult>;
-    forbidden(message?: string): Promise<IAPIResult>;
-    notFound(message?: string): Promise<IAPIResult>;
+    forbidden(error?: IAPIError): Promise<IAPIResult>;
+    notFound(error?: IAPIError): Promise<IAPIResult>;
+    noContent(): Promise<IAPIResult>;
 }
 
 
@@ -238,6 +253,7 @@ export interface IAPICompiledRoute extends IAPIPipeline {
     readonly expectedMethod: HttpVerb;
     readonly urlTemplate: string;
     readonly name: string;
+    checkForRequestMatch(request: IAPIRequest): IAPIRouteParameters;
 }
 
 export interface IAPIRoutingPath {

@@ -1,17 +1,15 @@
 import {
-    APIHandlerFunc,
     HttpVerb,
-    IAPICompiledRoute, IAPIPipeline,
+    IAPICompiledRoute,
     IAPIRequest,
-    IAPIResponder,
-    IAPIResult,
     IAPIRoute,
+    IAPIRouteParameters,
     IAPIRoutingPath
-} from './api-interfaces';
-import pathToRegexp from "path-to-regexp";
-import {Key} from "path-to-regexp";
+} from "./api-interfaces";
+import pathToRegexp, {Key} from "path-to-regexp";
+import {APIPipeline} from "./pipeline";
 
-class APICompiledRoute implements IAPICompiledRoute {
+export class APICompiledRoute extends APIPipeline implements IAPICompiledRoute {
     public readonly path: IAPIRoutingPath;
     public readonly urlTemplate: string;
     public readonly expectedMethod: HttpVerb;
@@ -19,8 +17,8 @@ class APICompiledRoute implements IAPICompiledRoute {
     public readonly apiRoute: IAPIRoute;
     private readonly _keysList: Key[];
     private readonly  _urlRegex: RegExp;
-    private _handlers: APIHandlerFunc[];
     constructor(verb: HttpVerb, urlTemplate: string, apiRoute: IAPIRoute, path?: IAPIRoutingPath) {
+        super();
         if (path) {
             this.path = path;
             this.urlTemplate = path.urlTemplate;
@@ -33,23 +31,22 @@ class APICompiledRoute implements IAPICompiledRoute {
         this.apiRoute = apiRoute;
         this.name = this.apiRoute && this.apiRoute.name ? this.apiRoute.name :  this.urlTemplate;
     }
-    appendHandler(handler: APIHandlerFunc): IAPIPipeline {
-        this._handlers.push(handler);
-        return this;
-    }
-    prependHandler(handler: APIHandlerFunc): IAPIPipeline {
-        this._handlers.splice(0, 0, handler);
-        return this;
-    }
-    appendPipeline(other: IAPIPipeline): IAPIPipeline {
-        return this.appendHandler(other.callback());
-    }
-    prependPipeline(other: IAPIPipeline): IAPIPipeline {
-        return this.appendHandler(other.callback());
-    }
-    callback(): APIHandlerFunc {
-        return (request: IAPIRequest, responder: IAPIResponder) =>  {
-            return Promise.reject(new Error('Not implemented'));
-        };
+    checkForRequestMatch(request: IAPIRequest): IAPIRouteParameters {
+        if (this.expectedMethod && this.expectedMethod !== HttpVerb.ALL) {
+            if (request.method !== this.expectedMethod) {
+                return null;
+            }
+        }
+        let matchResult = this._urlRegex.exec(request.url);
+        if (!matchResult) {
+            return null;
+        }
+        let routeParameters: IAPIRouteParameters = {};
+        this._keysList.forEach((key, index) => {
+            routeParameters[key.name] = matchResult[index + 1];
+        });
+        return routeParameters;
     }
 }
+
+
