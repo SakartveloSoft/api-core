@@ -5,7 +5,7 @@
   "main": "js/index.js",
   "scripts": {
     "build": "tsc ",
-    "test": "mocha --require ts-node/register --watch-extensions ts,tsx \"test/**/*.{ts,tsx}\""
+    "test": "mocha --require ts-node/register --watch-extensions ts,tsx \"tests/**/*.{ts,tsx}\""
   },
   "keywords": [],
   "author": "",
