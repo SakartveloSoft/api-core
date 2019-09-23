@@ -3,7 +3,7 @@ import {APIStructure, defineAPIStructure} from "./api-structure";
 import { setCodeRoot} from "./modules-resolver";
 
 import { compileValidator, ValidationErrorCodes } from './request-validator';
-import {IAPIStructure} from "./api-interfaces";
+import {IAPIStructure} from "./definition-interfaces";
 
 
 export const definePIStructure = (structureDefinition: IAPIStructure): APIStructure =>  defineAPIStructure(structureDefinition);

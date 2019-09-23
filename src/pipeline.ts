@@ -3,7 +3,6 @@ import {
     APIRequestBodyMode,
     APIResultAction,
     HttpStatusCode,
-    HttpVerb,
     IAPICompiledRoute,
     IAPIError,
     IAPIPipeline,
@@ -17,44 +16,9 @@ import {
     IHttpFormData
 } from './api-interfaces';
 
-class SpecialResult implements IAPIResult {
-    public action: APIResultAction = APIResultAction.Done;
-    public isAsync: boolean = false;
-    constructor(resultAction : APIResultAction) {
-        this.action = resultAction;
-    }
-    executeInstantProcessing(response: IAPIResponse): void {
-        //do nothing, it is a stub value to perofrm special action
-    }
-}
+import { HttpVerb} from "./definition-interfaces";
 
-class ContentResult implements IAPIResult {
-    public async : boolean = false;
-    public action : APIResultAction;
-    public content : any;
-    public contentType: string;
-    public status : HttpStatusCode;
-    public constructor(action: APIResultAction, statusCode: HttpStatusCode, content: Object|string|Buffer, contentType?: string) {
-        this.action = action;
-        if (content === null || content === undefined || content === '') {
-            this.status = HttpStatusCode.NoContent;
-        } else {
-            this.status = statusCode;
-        }
-        this.content = content;
-        if (contentType) {
-            this.contentType = contentType;
-        } else {
-            if (typeof(content) === "string" || content instanceof String) {
-                this.contentType = "text/html";
-            } else if (content instanceof Buffer) {
-                this.contentType = "application/octet-stream";
-            } else if (content !== null && content !== undefined) {
-                this.contentType = 'application/json'
-            }
-        }
-    }
-}
+
 
 
 
