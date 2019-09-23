@@ -18,5 +18,6 @@ export const loadAPIStructureFromJSON = (objectJSON:any): APIStructure => {
     return defineAPIStructure(objectJSON);
 };
 
+export {APIApplication} from './application';
 
 
