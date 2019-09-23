@@ -1,6 +1,6 @@
 import {expect} from 'chai';
 import {APICompiledRoute} from "../src/routing";
-import {HttpVerb} from "../src/api-interfaces";
+import {HttpVerb} from "../src/definition-interfaces";
 import {APIRequest} from "../src/pipeline";
 
 describe('Test routing infrastructure', () => {

@@ -1,6 +1,6 @@
 import {loadAPIStructureFromJSON} from '../src';
 import {expect} from 'chai';
-import {APIModuleCreationMethod, APIValueType} from "../src/api-interfaces";
+import {APIModuleCreationMethod, APIValueType} from "../src/definition-interfaces";
 import {APIModuleEntry} from "../src/api-structure";
 
 describe('Tests for API structure generation from parsed JSON', function () {

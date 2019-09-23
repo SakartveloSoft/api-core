@@ -3,7 +3,7 @@ import {
     APIValueType,
     IAPITypeSchema,
     IAPIValidationRules
-} from "./api-interfaces";
+} from "./definition-interfaces";
 
 import { APITypesResolver } from './api-structure';
 

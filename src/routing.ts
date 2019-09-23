@@ -1,8 +1,10 @@
 import {
     HttpVerb,
+    IAPIRoute,
+} from './definition-interfaces'
+import {
     IAPICompiledRoute,
     IAPIRequest,
-    IAPIRoute,
     IAPIRouteParameters,
     IAPIRoutingPath
 } from "./api-interfaces";

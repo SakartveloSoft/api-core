@@ -1,21 +1,22 @@
-import {APIStructure, defineAPIStructure} from "./api-structure";
+import { defineAPIStructure, APIStructure} from "./api-structure";
 
-import { setCodeRoot} from "./modules-resolver";
+export { HttpVerb  } from "./definition-interfaces";
 
-import { compileValidator, ValidationErrorCodes } from './request-validator';
-import {IAPIStructure} from "./definition-interfaces";
+export {APIStructure, defineAPIStructure} from "./api-structure";
 
+export { setCodeRoot} from "./modules-resolver";
 
-export const definePIStructure = (structureDefinition: IAPIStructure): APIStructure =>  defineAPIStructure(structureDefinition);
+export { compileValidator, ValidationErrorCodes } from './request-validator';
+export {IAPIStructure} from "./definition-interfaces";
+export {IHostingEnvironment} from "./api-interfaces";
+
 
 export const loadAPIStructureFromJSON = (objectJSON:any): APIStructure => {
     if (typeof (objectJSON) === 'string') {
         objectJSON = JSON.parse(objectJSON);
     }
-    return definePIStructure(objectJSON);
+    return defineAPIStructure(objectJSON);
 };
 
-export const bindsCodeRoot = setCodeRoot;
 
-export const defineValidator = compileValidator;
-export const ValidationErrors = ValidationErrorCodes;
+

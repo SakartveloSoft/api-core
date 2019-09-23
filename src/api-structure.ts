@@ -12,8 +12,11 @@ import {
     IAPIRoute,
     IAPIStructure,
     IAPITypeSchema,
-    IAPITypesResolver,
     IAPIValidationRules
+} from './definition-interfaces';
+import {
+    IAPITypesResolver
+
 } from './api-interfaces';
 
 

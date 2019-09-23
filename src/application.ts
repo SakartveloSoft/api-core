@@ -1,6 +1,6 @@
 import {APIPipeline, APIRequest, APIResponder} from "./pipeline";
 import {EventBroadcaster} from "./events";
-import {APIHandlerFunc, IAPIHandler, IAPIRequest, IAPIResponder} from "./api-interfaces";
+import {APIHandlerFunc, IAPIHandler, IAPIRequest, IAPIResponder, IHostingEnvironment} from "./api-interfaces";
 export type InitialRequestParser = (req: any) => APIRequest;
 export enum RequestParsingResult {
     Done= "done",
@@ -9,10 +9,6 @@ export enum RequestParsingResult {
 }
 export type RequestParserFunc = (req:any, parsedRequest: APIRequest) => RequestParsingResult;
 export type ResponseProcessor = (target: any, response: APIResponder) => Promise<void>;
-export interface IHostingEnvironment<TRequest, TResponse> {
-    analyzeRequest(request:TRequest): APIRequest;
-    responseProcessor(target:TResponse, responder:APIResponder):Promise<void>;
-}
 export type RequestCallback<TRequest, TResponse> = (req:TRequest, res:TResponse) => void;
 export class RequestParseErrorEvent {
     public req: any;
@@ -48,7 +44,7 @@ export class APIApplication {
         this._pipeline.appendHandler(handler.callback());
         return this;
     }
-    public addRequestParser(parser: RequestParserFunc):Application {
+    public addRequestParser(parser: RequestParserFunc):APIApplication {
         this._parsers.push(parser);
         return this;
     }
