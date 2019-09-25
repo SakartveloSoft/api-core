@@ -1,9 +1,10 @@
 import {HttpVerb, IAPIRoute, IAPITypeSchema} from "./definition-interfaces";
 import {APIRequest, APIResponder} from "./pipeline";
 
-export interface IHostingEnvironment<TRequest, TResponse> {
-    analyzeRequest(request:TRequest): APIRequest;
-    responseProcessor(target:TResponse, responder:APIResponder):Promise<void>;
+export interface IHostingEnvironment {
+    readonly environmentId: string;
+    processResponse(request: APIRequest, responder:APIResponder):Promise<void>;
+    processError(request: APIRequest, responder: APIResponder, error: IAPIError): Promise<void>;
 }
 
 

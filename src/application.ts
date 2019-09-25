@@ -1,23 +1,23 @@
 import {APIPipeline, APIRequest, APIResponder} from "./pipeline";
 import {EventBroadcaster} from "./events";
-import {APIHandlerFunc, IAPIHandler, IAPIRequest, IAPIResponder, IHostingEnvironment} from "./api-interfaces";
-export type InitialRequestParser = (req: any) => APIRequest;
-export enum RequestParsingResult {
-    Done= "done",
-    Continue = "continue",
-    Abort = "abort"
-}
-export type RequestParserFunc = (req:any, parsedRequest: APIRequest) => RequestParsingResult;
-export type ResponseProcessor = (target: any, response: APIResponder) => Promise<void>;
-export type RequestCallback<TRequest, TResponse> = (req:TRequest, res:TResponse) => void;
-export class RequestParseErrorEvent {
-    public req: any;
-    public parsedRequest: APIRequest;
-    public failure: Error;
-    constructor(req: any, parsedRequest: APIRequest, failure: Error) {
-        this.req = req;
-        this.parsedRequest = parsedRequest;
-        this.failure = failure;
+import {
+    APIHandlerFunc,
+    IAPIHandler,
+    IAPIPipeline,
+    IAPIRequest,
+    IAPIResponder, IAPIResult,
+    IHostingEnvironment
+} from "./api-interfaces";
+export type RequestCallback = (req:APIRequest) => Promise<void>;
+
+export class RequestAPICompletedEvent {
+    public request: IAPIRequest;
+    public response: IAPIResponder;
+    public details: any;
+    constructor(request: APIRequest, response: APIResponder, details: any) {
+        this.request = request;
+        this.response = response;
+        this.details = details;
     }
 }
 
@@ -31,10 +31,9 @@ export class RequestAPIErrorEvent {
         this.failure = failure;
     }
 }
-export class APIApplication {
-    private _parsers : RequestParserFunc[] = [];
-    public requestParseFailed = new EventBroadcaster<RequestParseErrorEvent>();
-    public reuestError = new EventBroadcaster<RequestAPIErrorEvent>()
+export class APIApplication implements IAPIPipeline{
+    public requestCompleted = new EventBroadcaster<RequestAPICompletedEvent>();
+    public requestError = new EventBroadcaster<RequestAPIErrorEvent>();
     protected _pipeline = new APIPipeline();
     public use(handler: APIHandlerFunc): APIApplication {
         this._pipeline.appendHandler(handler);
@@ -44,33 +43,41 @@ export class APIApplication {
         this._pipeline.appendHandler(handler.callback());
         return this;
     }
-    public addRequestParser(parser: RequestParserFunc):APIApplication {
-        this._parsers.push(parser);
-        return this;
-    }
-    public generateCallbackForEnvironment<TRequest, TResponse>(environment: IHostingEnvironment<TRequest, TResponse>) : RequestCallback<TRequest, TResponse>  {
-        return (req:TRequest,res: TResponse) : void => {
-            let apiRequest = environment.analyzeRequest(req);
-            for(let x = 0; x < this._parsers.length; x++) {
-                let result = this._parsers[x](req, apiRequest);
-                switch(result) {
-                    case undefined:
-                    case RequestParsingResult.Continue:
-                        continue;
-                    case RequestParsingResult.Abort:
-                        this.requestParseFailed.emit(new RequestParseErrorEvent(req, apiRequest, null));
-                        return;
-                    case RequestParsingResult.Done:
-                        break;
-
-                }
-            }
+    public generateCallbackForEnvironment(environment: IHostingEnvironment) : RequestCallback  {
+        return (apiRequest:APIRequest) : Promise<void> => {
             let responder = new APIResponder();
-            this._pipeline.callback()(apiRequest, responder).then(() => {
-                return environment.responseProcessor(res, responder);
+            return this._pipeline.callback()(apiRequest, responder).then(() => {
+                return environment.processResponse(apiRequest, responder).then((ret) => {
+                    this.requestCompleted.emit(new RequestAPICompletedEvent(apiRequest, responder, ret));
+                });
             }).catch(err => {
-                this.reuestError.emit(new RequestAPIErrorEvent(apiRequest, responder, err));
+                this.requestError.emit(new RequestAPIErrorEvent(apiRequest, responder, err));
+                return environment.processError(apiRequest, responder, err);
             });
         }
+    }
+
+    appendHandler(handler: (request: IAPIRequest, responder: IAPIResponder) => Promise<IAPIResult>): IAPIPipeline {
+        this._pipeline.appendHandler(handler);
+        return this;
+    }
+
+    appendPipeline(other: IAPIPipeline): IAPIPipeline {
+        this._pipeline.appendPipeline(other);
+        return this;
+    }
+
+    callback(): (request: IAPIRequest, responder: IAPIResponder) => Promise<IAPIResult> {
+        return this._pipeline.callback();
+    }
+
+    prependHandler(handler: (request: IAPIRequest, responder: IAPIResponder) => Promise<IAPIResult>): IAPIPipeline {
+        this._pipeline.prependHandler(handler);
+        return this;
+    }
+
+    prependPipeline(other: IAPIPipeline): IAPIPipeline {
+        this._pipeline.prependPipeline(other);
+        return this;
     }
 }
