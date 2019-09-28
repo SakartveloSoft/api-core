@@ -1,5 +1,5 @@
 {
-  "name": "api-core",
+  "name": "@sakartvelosoft/api-core",
   "version": "1.0.0",
   "description": "api-core",
   "main": "js/index.js",
