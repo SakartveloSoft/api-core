@@ -147,24 +147,33 @@ export interface IAPICompiledRoute extends IAPIPipeline {
     readonly expectedMethod: HttpVerb;
     readonly urlTemplate: string;
     readonly name: string;
-    checkForRequestMatch(request: IAPIRequest): IAPIRouteParameters;
+    checkForRequestMatch(method: HttpVerb, url: string): IAPIRouteParameters;
 }
 
 export interface IAPIRoutingPath {
     urlTemplate: string;
-    checkUrl(url: string):IAPIRoutingPath
+    checkUrl(url: string):IAPIRouteParameters;
     hasPipeline(method: HttpVerb): boolean;
     tryGetPipeline(method: HttpVerb): IAPIPipeline;
     ensureForPipeline(method: HttpVerb): IAPIPipeline;
+    bindPipeline(verb: HttpVerb, pipeline:IAPIPipeline): void;
     get(...handlerFunc: APIHandlerFunc[]):IAPIRoutingPath;
     post(...handlerFunc: APIHandlerFunc[]):IAPIRoutingPath;
     put(...handlerFunc: APIHandlerFunc[]):IAPIRoutingPath;
     del(...handlerFunc: APIHandlerFunc[]):IAPIRoutingPath;
-    options(handlerFunc: APIHandlerFunc[]):IAPIRoutingPath;
+    options(...handlerFunc: APIHandlerFunc[]):IAPIRoutingPath;
     all(...handlerFunc: APIHandlerFunc[]): IAPIRoutingPath;
 }
 
+export interface IAPIRouteCheckResult {
+    url: string;
+    route: IAPICompiledRoute;
+    parameters: IAPIRouteParameters;
+}
+
 export interface IAPIRouter extends IAPIHandler {
+    forRoute(route: IAPIRoute, ...handlers: APIHandlerFunc[]): IAPIRouter;
+    tryPickRoute(method: HttpVerb, urlPath: string): IAPIRouteCheckResult;
     forPath(urlTemplate: string): IAPIRoutingPath;
     get(url: string, ...func:APIHandlerFunc[]): IAPIRouter;
     post(url: string, ...func:APIHandlerFunc[]): IAPIRouter;

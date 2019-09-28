@@ -5,7 +5,7 @@ import {
     IAPIHandler,
     IAPIPipeline,
     IAPIRequest,
-    IAPIResponder, IAPIResult,
+    IAPIResponder, IAPIResult, IAPIRouter,
     IHostingEnvironment
 } from "./api-interfaces";
 export type RequestCallback = (req:APIRequest) => Promise<void>;
@@ -41,6 +41,10 @@ export class APIApplication implements IAPIPipeline{
     }
     public useHandler(handler: IAPIHandler): APIApplication {
         this._pipeline.appendHandler(handler.callback());
+        return this;
+    }
+    public useRouter(router: IAPIRouter): APIApplication {
+        this._pipeline.appendHandler(router.callback());
         return this;
     }
     public generateCallbackForEnvironment(environment: IHostingEnvironment) : RequestCallback  {

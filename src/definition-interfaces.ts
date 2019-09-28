@@ -73,6 +73,7 @@ export interface IAPINode {
     name: string;
     routePrefix?: string;
     controller?: string;
+    parameters?: IAPIParameter[];
     action?: string;
     parent?: IAPINode
 }
