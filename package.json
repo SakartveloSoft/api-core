@@ -10,7 +10,10 @@
     "test": "mocha --require ts-node/register --watch-extensions ts,tsx \"tests/**/*.{ts,tsx}\""
   },
   "keywords": [],
-  "author": "",
+  "author": {
+    "email": "kote.isaev@sakartvelosoft.com",
+    "name": "Kote Isaev"
+  },
   "license": "ISC",
   "dependencies": {
     "@types/path-to-regexp": "^1.7.0",
