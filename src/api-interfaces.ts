@@ -164,10 +164,9 @@ export interface IAPICompiledRoute extends IAPIPipeline {
 export interface IAPIRoutingPath {
     urlTemplate: IAPIUrlTemplate;
     checkUrl(url: string):IAPIRouteParameters;
-    hasPipeline(method: HttpVerb): boolean;
-    tryGetPipeline(method: HttpVerb): IAPIPipeline;
-    ensureForPipeline(method: HttpVerb): IAPIPipeline;
-    bindPipeline(verb: HttpVerb, pipeline:IAPIPipeline): void;
+    hasRoute(method: HttpVerb): boolean;
+    tryGetRoute(method: HttpVerb): IAPICompiledRoute;
+    ensureForRoute(method: HttpVerb, apiRoute?: IAPIRoute): IAPICompiledRoute;
     get(...handlerFunc: APIHandlerFunc[]):IAPIRoutingPath;
     post(...handlerFunc: APIHandlerFunc[]):IAPIRoutingPath;
     put(...handlerFunc: APIHandlerFunc[]):IAPIRoutingPath;

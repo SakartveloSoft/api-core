@@ -63,6 +63,7 @@ describe('Test routing infrastructure', () => {
         }
         let routePickResult = router.tryPickRoute(HttpVerb.POST, '/auth/sign-in');
         expect(routePickResult).is.not.equals(null);
+        expect(routePickResult.route.name).equals('Authentication/Sign In');
         expect(routePickResult.route.controller).equals('auth');
         expect(routePickResult.route.action).equals('signIn');
     })

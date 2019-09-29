@@ -2,14 +2,14 @@ import {HttpVerb, IAPIParameter, IAPIRoute,} from './definition-interfaces'
 import {
     APIHandlerFunc,
     IAPICompiledRoute,
-    IAPIPipeline,
     IAPIRequest,
     IAPIResponder,
     IAPIResult,
     IAPIRouteCheckResult,
     IAPIRouteParameters,
     IAPIRouter,
-    IAPIRoutingPath, IAPIUrlTemplate
+    IAPIRoutingPath,
+    IAPIUrlTemplate
 } from "./api-interfaces";
 import pathToRegexp, {Key} from "path-to-regexp";
 import {APIPipeline} from "./pipeline";
@@ -114,12 +114,17 @@ export class APICompiledRoute extends APIPipeline implements IAPICompiledRoute {
         } else {
             this.name = this.apiRoute && this.apiRoute.name ? this.apiRoute.name : this.urlTemplate.urlTemplate;
         }
-        if (controllerId !== undefined && actionId !== null) {
+        if (controllerId !== undefined && controllerId !== null) {
             this.controller = controllerId;
+        } else if (apiRoute) {
+            this.controller = apiRoute.controller;
         }
         if (actionId !== undefined && actionId !== null) {
             this.action = actionId;
+        } else if (apiRoute) {
+            this.action = apiRoute.action;
         }
+
         if (apiRoute) {
             if (apiRoute.parameters && apiRoute.parameters.length > 0) {
                 this.parameters = this.parameters.concat(apiRoute.parameters)
@@ -163,7 +168,7 @@ export class RouteCheckResult implements IAPIRouteCheckResult{
 
 class APIRoutingPath implements IAPIRoutingPath {
     public urlTemplate: IAPIUrlTemplate;
-    private pipelinesMap: {[key in HttpVerb]?: IAPIPipeline } = {
+    private routesMap: {[key in HttpVerb]?: IAPICompiledRoute } = {
         [HttpVerb.GET] : null,
         [HttpVerb.POST]: null,
         [HttpVerb.PUT]: null,
@@ -175,7 +180,7 @@ class APIRoutingPath implements IAPIRoutingPath {
     }
 
     private addHandlers(verb:HttpVerb, handlers: APIHandlerFunc| APIHandlerFunc[]) {
-        let pipeline = this.ensureForPipeline(verb);
+        let pipeline = this.ensureForRoute(verb);
         if (Array.isArray(handlers)) {
             for (let x = 0; x < handlers.length; x++) {
                 pipeline.appendHandler(handlers[x]);
@@ -205,13 +210,33 @@ class APIRoutingPath implements IAPIRoutingPath {
         return this;
     }
 
-    ensureForPipeline(method: HttpVerb): IAPIPipeline {
-        let pipeline: IAPIPipeline = this.pipelinesMap[method];
-        if (!pipeline) {
-            pipeline = new APIPipeline();
-            this.pipelinesMap[method] = pipeline;
+    ensureForRoute(method: HttpVerb, route?: IAPIRoute): IAPICompiledRoute {
+        let compiledRoute: IAPICompiledRoute = this.routesMap[method];
+        if (!compiledRoute) {
+            let fullNames = [route.name || (route.verb + ' ' + (route.routePrefix || '') + (route.routeTemplate || ''))];
+            let controllerId = route.controller;
+            let actionId = route.action;
+            let paramsList = route.parameters || [];
+            let apiNode = route.parent;
+            while(apiNode) {
+                if (apiNode.parameters) {
+                    paramsList = apiNode.parameters.concat(paramsList);
+                }
+                if (apiNode.name) {
+                    fullNames.splice(0, 0, apiNode.name);
+                }
+                if (!actionId && apiNode.action) {
+                    actionId = apiNode.action;
+                }
+                if (!controllerId && apiNode.controller) {
+                    controllerId = apiNode.controller;
+                }
+                apiNode = apiNode.parent;
+            }
+            compiledRoute = new APICompiledRoute(method, this.urlTemplate, route || null, this, fullNames.join('/'), controllerId, actionId);
+            this.routesMap[method] = compiledRoute;
         }
-        return pipeline;
+        return compiledRoute;
     }
 
     get(...handlerFunc: APIHandlerFunc[]): IAPIRoutingPath {
@@ -219,8 +244,8 @@ class APIRoutingPath implements IAPIRoutingPath {
         return this;
     }
 
-    hasPipeline(method: HttpVerb): boolean {
-        let pipeline = this.pipelinesMap[method];
+    hasRoute(method: HttpVerb): boolean {
+        let pipeline = this.routesMap[method];
         return pipeline !== null && pipeline !== undefined;
     }
 
@@ -239,11 +264,8 @@ class APIRoutingPath implements IAPIRoutingPath {
         return this;
     }
 
-    tryGetPipeline(method: HttpVerb): IAPIPipeline {
-        return this.pipelinesMap[method] || null;
-    }
-    bindPipeline(verb: HttpVerb, pipeline:IAPIPipeline): void {
-        this.pipelinesMap[verb] = pipeline;
+    tryGetRoute(method: HttpVerb): IAPICompiledRoute {
+        return this.routesMap[method] || null;
     }
 }
 
@@ -258,16 +280,19 @@ function compileRouteDefaultHandlers(route: IAPIRoute, compiledRoute: IAPICompil
 }
 
 export class APIRouter implements IAPIRouter {
-    private compiledRoutesList : IAPICompiledRoute[] = [];
     private pathsMap : {[urlTemplate : string]: APIRoutingPath } = {};
+    private pathsList: IAPIRoutingPath[] = [];
 
     tryPickRoute(method: HttpVerb, urlPath: string): IAPIRouteCheckResult  {
-        for(let x = 0; x < this.compiledRoutesList.length; x++) {
-            let route = this.compiledRoutesList[x];
-            let paramsBag = route.checkForRequestMatch(method, urlPath);
-            if (paramsBag !== null && paramsBag !== undefined) {
-                return new RouteCheckResult(urlPath, route, paramsBag);
+        for(const path of this.pathsList) {
+            if (path.hasRoute(method)) {
+                let route = path.tryGetRoute(method);
+                let urlParameters = path.checkUrl(urlPath);
+                if (urlParameters) {
+                    return new RouteCheckResult(urlPath, route, urlParameters);
+                }
             }
+
         }
         return null;
     }
@@ -278,47 +303,29 @@ export class APIRouter implements IAPIRouter {
         if (!apiPath && autoCreate) {
             apiPath = new APIRoutingPath(urlTemplate);
             this.pathsMap[templateString] = apiPath;
+            this.pathsList.push(apiPath);
         }
         return apiPath;
     }
 
 
     forRoute(route: IAPIRoute, ...handlers:APIHandlerFunc[]): IAPIRouter{
-        let fullNames = [route.name || (route.verb + ' ' + (route.routePrefix || '') + (route.routeTemplate || ''))];
         let fullPath =  new APIUrlTemplate((route.routePrefix || '') + (route.routeTemplate || ''));
-        let controllerId = route.controller;
-        let actionId = route.action;
-        let paramsList = route.parameters || [];
         let apiNode = route.parent;
         while(apiNode) {
-            if (apiNode.parameters) {
-                paramsList = apiNode.parameters.concat(paramsList);
-            }
-            if (apiNode.name) {
-                fullNames.splice(0, 0, apiNode.name);
-            }
             if (apiNode.routePrefix) {
                 fullPath = fullPath.prepend(apiNode.routePrefix);
-            }
-            if (!actionId && apiNode.action) {
-                actionId = apiNode.action;
-            }
-            if (!controllerId && apiNode.controller) {
-                controllerId = apiNode.controller;
             }
             apiNode = apiNode.parent;
         }
         let pathEntry =  this.forPath(fullPath);
-        let pipeline = pathEntry.tryGetPipeline(route.verb);
-        if (!pipeline) {
-            let compiledRoute = new APICompiledRoute(route.verb, fullPath, route, pathEntry, fullNames.join('::'), controllerId, actionId);
-            pathEntry.bindPipeline(route.verb, compiledRoute);
-            this.compiledRoutesList.push(compiledRoute);
-            pipeline = compiledRoute;
+        let compiledRoute = pathEntry.tryGetRoute(route.verb);
+        if (!compiledRoute) {
+            compiledRoute = pathEntry.ensureForRoute(route.verb, route);
             compileRouteDefaultHandlers(route, compiledRoute);
         }
         for(let x = 0; x < handlers.length; x++) {
-            pipeline.appendHandler(handlers[x]);
+            compiledRoute.appendHandler(handlers[x]);
         }
         return this;
     }
@@ -329,15 +336,12 @@ export class APIRouter implements IAPIRouter {
     }
 
     processRequest(request: IAPIRequest, responder: IAPIResponder): Promise<IAPIResult> {
-        for (let pathRef in this.pathsMap) {
-            let pathEntry = this.pathsMap[pathRef];
-            if (pathEntry.hasPipeline(request.method) || pathEntry.hasPipeline(HttpVerb.ALL)) {
-                let urlResult = pathEntry.checkUrl(request.url);
+        for (const pathRef of this.pathsList) {
+            let pipeline = pathRef.tryGetRoute(request.method) || pathRef.tryGetRoute(HttpVerb.ALL);
+            if (pipeline) {
+                let urlResult = pathRef.checkUrl(request.url);
                 if (urlResult !== undefined && urlResult !== null) {
-                    let pipeline = pathEntry.tryGetPipeline(request.method);
-                    if (pipeline) {
-                        return pipeline.processRequest(request, responder);
-                    }
+                    return pipeline.processRequest(request, responder);
                 }
             }
         }
