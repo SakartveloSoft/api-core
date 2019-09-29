@@ -1,7 +1,7 @@
 import {HttpVerb, IAPIParameter, IAPIRoute,} from './definition-interfaces'
 import {
     APIHandlerFunc,
-    IAPICompiledRoute,
+    IAPICompiledRoute, IAPIHandlersCompiler,
     IAPIRequest,
     IAPIResponder,
     IAPIResult,
@@ -269,19 +269,16 @@ class APIRoutingPath implements IAPIRoutingPath {
     }
 }
 
-function compileRouteDefaultHandlers(route: IAPIRoute, compiledRoute: IAPICompiledRoute):APIHandlerFunc[] {
-    if (!route || !compiledRoute) {
-        throw new Error('route and compiledRoute are required parameters');
-    }
-    if (!(compiledRoute instanceof APICompiledRoute)) {
-        throw new Error('compiled route must be instance of APICompiledRoute');
-    }
-    return null;
-}
 
 export class APIRouter implements IAPIRouter {
     private pathsMap : {[urlTemplate : string]: APIRoutingPath } = {};
     private pathsList: IAPIRoutingPath[] = [];
+
+    private handlersCompiler: IAPIHandlersCompiler;
+
+    attachHandlersCompiler(handlersCompiler: IAPIHandlersCompiler): void {
+        this.handlersCompiler = handlersCompiler;
+    }
 
     tryPickRoute(method: HttpVerb, urlPath: string): IAPIRouteCheckResult  {
         for(const path of this.pathsList) {
@@ -322,7 +319,12 @@ export class APIRouter implements IAPIRouter {
         let compiledRoute = pathEntry.tryGetRoute(route.verb);
         if (!compiledRoute) {
             compiledRoute = pathEntry.ensureForRoute(route.verb, route);
-            compileRouteDefaultHandlers(route, compiledRoute);
+            if (this.handlersCompiler) {
+                let handlers = this.handlersCompiler.compileHandlers(compiledRoute, route);
+                for(const handler of handlers) {
+                    compiledRoute.appendHandler(handler);
+                }
+            }
         }
         for(let x = 0; x < handlers.length; x++) {
             compiledRoute.appendHandler(handlers[x]);

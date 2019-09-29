@@ -181,7 +181,13 @@ export interface IAPIRouteCheckResult {
     parameters: IAPIRouteParameters;
 }
 
+export interface IAPIHandlersCompiler {
+    compileHandlers(apiCompiledRoute: IAPICompiledRoute, apiRoute: IAPIRoute): APIHandlerFunc[];
+}
+
+
 export interface IAPIRouter extends IAPIHandler {
+    attachHandlersCompiler(handlersCompiler: IAPIHandlersCompiler): void;
     forRoute(route: IAPIRoute, ...handlers: APIHandlerFunc[]): IAPIRouter;
     tryPickRoute(method: HttpVerb, urlPath: string): IAPIRouteCheckResult;
     forPath(urlTemplate: string|IAPIUrlTemplate): IAPIRoutingPath;
@@ -192,3 +198,4 @@ export interface IAPIRouter extends IAPIHandler {
     options(url: string, ...func:APIHandlerFunc[]): IAPIRouter;
     all(url: string, ...func:APIHandlerFunc[]): IAPIRouter;
 }
+
