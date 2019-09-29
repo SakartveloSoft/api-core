@@ -1,4 +1,5 @@
 import { defineAPIStructure, APIStructure} from "./api-structure";
+import {IAPIUrlTemplate} from "./api-interfaces";
 
 export { HttpVerb  } from "./definition-interfaces";
 
@@ -18,7 +19,11 @@ export const loadAPIStructureFromJSON = (objectJSON:any): APIStructure => {
     return defineAPIStructure(objectJSON);
 };
 
-export {APIRouter} from './routing'
+export {APIRequest} from './pipeline';
+
+export {IAPIUrlTemplate} from './api-interfaces';
+
+export {makeUrlTemplate, APIRouter} from './routing'
 
 export {APIApplication} from './application';
 

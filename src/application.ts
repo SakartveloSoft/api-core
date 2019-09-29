@@ -31,7 +31,7 @@ export class RequestAPIErrorEvent {
         this.failure = failure;
     }
 }
-export class APIApplication implements IAPIPipeline{
+export class APIApplication extends APIPipeline {
     public requestCompleted = new EventBroadcaster<RequestAPICompletedEvent>();
     public requestError = new EventBroadcaster<RequestAPIErrorEvent>();
     protected _pipeline = new APIPipeline();
@@ -61,27 +61,4 @@ export class APIApplication implements IAPIPipeline{
         }
     }
 
-    appendHandler(handler: (request: IAPIRequest, responder: IAPIResponder) => Promise<IAPIResult>): IAPIPipeline {
-        this._pipeline.appendHandler(handler);
-        return this;
-    }
-
-    appendPipeline(other: IAPIPipeline): IAPIPipeline {
-        this._pipeline.appendPipeline(other);
-        return this;
-    }
-
-    callback(): (request: IAPIRequest, responder: IAPIResponder) => Promise<IAPIResult> {
-        return this._pipeline.callback();
-    }
-
-    prependHandler(handler: (request: IAPIRequest, responder: IAPIResponder) => Promise<IAPIResult>): IAPIPipeline {
-        this._pipeline.prependHandler(handler);
-        return this;
-    }
-
-    prependPipeline(other: IAPIPipeline): IAPIPipeline {
-        this._pipeline.prependPipeline(other);
-        return this;
-    }
 }

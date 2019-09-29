@@ -223,7 +223,7 @@ export class APIRoute implements IAPIRoute{
         this.parent = parent;
         this.name = definition.name;
         this.routeTemplate = definition.routeTemplate || '';
-        this.routePrefix = definition.routePrefix || parent.routePrefix || '';
+        this.routePrefix = definition.routePrefix || '';
         this.verb = definition.verb || HttpVerb.GET;
         this.controller = definition.controller || parent.controller;
         this.action = definition.action;

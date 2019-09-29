@@ -125,7 +125,7 @@ export class APIException extends Error {
 }
 
 export class APIPipeline implements IAPIPipeline {
-    private _handlers: APIHandlerFunc[];
+    private _handlers: APIHandlerFunc[] = [];
     appendHandler(handler: APIHandlerFunc): IAPIPipeline {
         this._handlers.push(handler);
         return this;
@@ -172,13 +172,16 @@ export class APIPipeline implements IAPIPipeline {
             return Promise.reject(e);
         }
     }
+
+    processRequest(request: IAPIRequest, responder: IAPIResponder): Promise<IAPIResult> {
+        if (this._handlers.length === 0) {
+            return Promise.resolve(responder.next());
+        }
+        return this._callAction(request, responder, this._handlers[0], 1);
+    }
+
     callback(): APIHandlerFunc {
-        return (request: IAPIRequest, responder: IAPIResponder): Promise<IAPIResult> =>  {
-            if (this._handlers.length === 0) {
-                return Promise.resolve(responder.next());
-            }
-            return this._callAction(request, responder, this._handlers[0], 1);
-        };
+        return this.processRequest.bind(this);
     }
 }
 

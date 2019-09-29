@@ -1,4 +1,4 @@
-import {HttpVerb, IAPIRoute,} from './definition-interfaces'
+import {HttpVerb, IAPIParameter, IAPIRoute,} from './definition-interfaces'
 import {
     APIHandlerFunc,
     IAPICompiledRoute,
@@ -9,32 +9,136 @@ import {
     IAPIRouteCheckResult,
     IAPIRouteParameters,
     IAPIRouter,
-    IAPIRoutingPath
+    IAPIRoutingPath, IAPIUrlTemplate
 } from "./api-interfaces";
 import pathToRegexp, {Key} from "path-to-regexp";
 import {APIPipeline} from "./pipeline";
 
+function combineUrlPaths(a: string, b:string):string {
+    if (a.length === 0) {
+        if (b.length === 0) {
+            return '';
+        }
+        return b;
+    }
+    if (b.length === 0) {
+        return b;
+    }
+    return (a.charAt(a.length-1) === '/' ? a.substr(0, a.length-1) : a) +  (b.charAt(0) === '/' ? b : ('/' + b));
+}
+
+class APIUrlTemplate implements IAPIUrlTemplate {
+    public readonly urlTemplate: string;
+    private pathRegexp: RegExp;
+    private keysList: Key[];
+    constructor(urlTemplate: string) {
+        this.urlTemplate = urlTemplate;
+        this.pathRegexp = pathToRegexp(urlTemplate, this.keysList);
+    }
+    validateUrl(url: string): IAPIRouteParameters {
+        if ((this.urlTemplate.charAt(0) !== '/') && (url.charAt(0) === '/')) {
+            url = url.substr(1);
+        }
+        if (!this.keysList) {
+            this.keysList = [];
+            this.pathRegexp = pathToRegexp(this.urlTemplate, this.keysList);
+        }
+        let matchResult = this.pathRegexp.exec(url);
+        if (matchResult) {
+            let parameters:IAPIRouteParameters = {};
+            for(let x = 0; x < this.keysList.length; x++) {
+                const key = this.keysList[x];
+                parameters[key.name] = matchResult[x+1];
+            }
+            return parameters;
+        }
+        return null;
+    }
+    append(...pathSegments:(string|IAPIUrlTemplate)[]) {
+        let fullUrl = this.urlTemplate;
+        for(const segment of pathSegments) {
+            fullUrl = combineUrlPaths(fullUrl, typeof(segment) === 'string' ? segment : segment.urlTemplate);
+        }
+        return new APIUrlTemplate(fullUrl);
+    }
+    prepend(...pathSegments:(string|IAPIUrlTemplate)[]) {
+        let fullUrl = this.urlTemplate;
+        for(const segment of pathSegments) {
+            fullUrl = combineUrlPaths(typeof(segment) === 'string' ? segment : segment.urlTemplate, fullUrl);
+        }
+        return new APIUrlTemplate(fullUrl);
+    }
+    [Symbol.toPrimitive](hint:string): any {
+        if (hint === 'number') {
+            return NaN;
+        }
+        return this.urlTemplate;
+    }
+    toString(): string {
+        return this.urlTemplate;
+    }
+    ["valueOf"]():string {
+        return this.urlTemplate;
+    }
+}
+
+export function makeUrlTemplate(baseUrl: string, ...segments: string[]): IAPIUrlTemplate {
+    let url = baseUrl;
+    for(const segment of segments) {
+        url = combineUrlPaths(url, segment);
+    }
+    return new APIUrlTemplate(url);
+}
+
 export class APICompiledRoute extends APIPipeline implements IAPICompiledRoute {
     public readonly path: IAPIRoutingPath;
-    public readonly urlTemplate: string;
+    public readonly urlTemplate: IAPIUrlTemplate;
     public readonly expectedMethod: HttpVerb;
     public readonly name: string;
     public readonly apiRoute: IAPIRoute;
-    private readonly _keysList: Key[];
-    private readonly  _urlRegex: RegExp;
-    constructor(verb: HttpVerb, urlTemplate: string, apiRoute: IAPIRoute, path?: IAPIRoutingPath) {
+    public readonly controller: string;
+    public readonly action: string;
+    public readonly parameters: IAPIParameter[] = [];
+    constructor(verb: HttpVerb, urlTemplate: string|IAPIUrlTemplate, apiRoute: IAPIRoute, path?: IAPIRoutingPath, overrideName?: string, controllerId?: string, actionId?: string) {
         super();
         if (path) {
             this.path = path;
             this.urlTemplate = path.urlTemplate;
         } else {
             this.path = null;
-            this.urlTemplate = urlTemplate;
-            this._keysList = [];
-            this._urlRegex =  pathToRegexp(this.urlTemplate, this._keysList);
+            this.urlTemplate = typeof (urlTemplate) === 'string' ?  new APIUrlTemplate(urlTemplate) : urlTemplate;
         }
         this.apiRoute = apiRoute;
-        this.name = this.apiRoute && this.apiRoute.name ? this.apiRoute.name :  this.urlTemplate;
+        if (overrideName) {
+            this.name = overrideName;
+        } else {
+            this.name = this.apiRoute && this.apiRoute.name ? this.apiRoute.name : this.urlTemplate.urlTemplate;
+        }
+        if (controllerId !== undefined && actionId !== null) {
+            this.controller = controllerId;
+        }
+        if (actionId !== undefined && actionId !== null) {
+            this.action = actionId;
+        }
+        if (apiRoute) {
+            if (apiRoute.parameters && apiRoute.parameters.length > 0) {
+                this.parameters = this.parameters.concat(apiRoute.parameters)
+            }
+            let apiNode = apiRoute.parent;
+            while (apiNode) {
+                if (!this.controller && apiNode.controller) {
+                    this.controller = apiNode.controller;
+                }
+                if (!this.action && apiNode.action) {
+                    this.action = apiNode.action;
+                }
+                if (apiNode.parameters && apiNode.parameters.length > 0) {
+                    this.parameters = apiNode.parameters.concat(this.parameters);
+                }
+                apiNode = apiNode.parent;
+            }
+        }
+
     }
     checkForRequestMatch(method:HttpVerb, requestUrl: string): IAPIRouteParameters {
         if (this.expectedMethod && this.expectedMethod !== HttpVerb.ALL) {
@@ -42,15 +146,7 @@ export class APICompiledRoute extends APIPipeline implements IAPICompiledRoute {
                 return null;
             }
         }
-        let matchResult = this._urlRegex.exec(requestUrl);
-        if (!matchResult) {
-            return null;
-        }
-        let routeParameters: IAPIRouteParameters = {};
-        this._keysList.forEach((key, index) => {
-            routeParameters[key.name] = matchResult[index + 1];
-        });
-        return routeParameters;
+        return this.urlTemplate.validateUrl(requestUrl);
     }
 }
 
@@ -66,9 +162,7 @@ export class RouteCheckResult implements IAPIRouteCheckResult{
 }
 
 class APIRoutingPath implements IAPIRoutingPath {
-    public urlTemplate: string;
-    private parametersList:Key[] = [];
-    private pathRegexp: RegExp;
+    public urlTemplate: IAPIUrlTemplate;
     private pipelinesMap: {[key in HttpVerb]?: IAPIPipeline } = {
         [HttpVerb.GET] : null,
         [HttpVerb.POST]: null,
@@ -76,9 +170,8 @@ class APIRoutingPath implements IAPIRoutingPath {
         [HttpVerb.DELETE]: null,
         [HttpVerb.OPTIONS]: null
     };
-    constructor(urlTemplate: string) {
-        this.urlTemplate = urlTemplate;
-        this.pathRegexp = pathToRegexp(this.urlTemplate, this.parametersList);
+    constructor(urlTemplate: string|IAPIUrlTemplate) {
+        this.urlTemplate = typeof(urlTemplate) === 'string' ? new APIUrlTemplate(urlTemplate) : urlTemplate;
     }
 
     private addHandlers(verb:HttpVerb, handlers: APIHandlerFunc| APIHandlerFunc[]) {
@@ -104,16 +197,7 @@ class APIRoutingPath implements IAPIRoutingPath {
     }
 
     checkUrl(url: string): IAPIRouteParameters {
-        let matchResult = this.pathRegexp.exec(url);
-        if (matchResult !== undefined && matchResult !== null) {
-            let parameters: IAPIRouteParameters = {};
-            for(let x = 0; x < this.parametersList.length; x++) {
-                let keyInfo = this.parametersList[x];
-                parameters[keyInfo.name] = matchResult[x+1]
-            }
-            return parameters;
-        }
-        return null;
+        return this.urlTemplate.validateUrl(url);
     }
 
     del(...handlerFunc: APIHandlerFunc[]): IAPIRoutingPath {
@@ -188,11 +272,12 @@ export class APIRouter implements IAPIRouter {
         return null;
     }
 
-    private getAPIPathByTemplate(urlTemplate: string, autoCreate?: boolean) {
-        let apiPath = this.pathsMap[urlTemplate];
+    private getAPIPathByTemplate(urlTemplate: string|IAPIUrlTemplate, autoCreate?: boolean) {
+        let templateString = typeof(urlTemplate) === 'string' ? urlTemplate : urlTemplate.urlTemplate;
+        let apiPath = this.pathsMap[templateString];
         if (!apiPath && autoCreate) {
             apiPath = new APIRoutingPath(urlTemplate);
-            this.pathsMap[urlTemplate] = apiPath;
+            this.pathsMap[templateString] = apiPath;
         }
         return apiPath;
     }
@@ -200,7 +285,7 @@ export class APIRouter implements IAPIRouter {
 
     forRoute(route: IAPIRoute, ...handlers:APIHandlerFunc[]): IAPIRouter{
         let fullNames = [route.name || (route.verb + ' ' + (route.routePrefix || '') + (route.routeTemplate || ''))];
-        let fullPath =  (route.routePrefix || '') + (route.routeTemplate || '');
+        let fullPath =  new APIUrlTemplate((route.routePrefix || '') + (route.routeTemplate || ''));
         let controllerId = route.controller;
         let actionId = route.action;
         let paramsList = route.parameters || [];
@@ -213,7 +298,7 @@ export class APIRouter implements IAPIRouter {
                 fullNames.splice(0, 0, apiNode.name);
             }
             if (apiNode.routePrefix) {
-                fullPath = apiNode.routePrefix + fullPath;
+                fullPath = fullPath.prepend(apiNode.routePrefix);
             }
             if (!actionId && apiNode.action) {
                 actionId = apiNode.action;
@@ -223,11 +308,10 @@ export class APIRouter implements IAPIRouter {
             }
             apiNode = apiNode.parent;
         }
-        fullPath = fullPath.replace(/\/\//g, '/');
         let pathEntry =  this.forPath(fullPath);
         let pipeline = pathEntry.tryGetPipeline(route.verb);
         if (!pipeline) {
-            let compiledRoute = new APICompiledRoute(route.verb, fullPath, route, pathEntry);
+            let compiledRoute = new APICompiledRoute(route.verb, fullPath, route, pathEntry, fullNames.join('::'), controllerId, actionId);
             pathEntry.bindPipeline(route.verb, compiledRoute);
             this.compiledRoutesList.push(compiledRoute);
             pipeline = compiledRoute;
@@ -244,22 +328,24 @@ export class APIRouter implements IAPIRouter {
         return this;
     }
 
-    callback(): (request: IAPIRequest, responder: IAPIResponder) => Promise<IAPIResult> {
-        return (request: IAPIRequest, responder: IAPIResponder): Promise<IAPIResult> => {
-            for (let pathRef in this.pathsMap) {
-                let pathEntry = this.pathsMap[pathRef];
-                if (pathEntry.hasPipeline(request.method) || pathEntry.hasPipeline(HttpVerb.ALL)) {
-                    let urlResult = pathEntry.checkUrl(request.url);
-                    if (urlResult !== undefined && urlResult !== null) {
-                        let pipeline = pathEntry.tryGetPipeline(request.method);
-                        if (pipeline) {
-                            return pipeline.callback()(request, responder);
-                        }
+    processRequest(request: IAPIRequest, responder: IAPIResponder): Promise<IAPIResult> {
+        for (let pathRef in this.pathsMap) {
+            let pathEntry = this.pathsMap[pathRef];
+            if (pathEntry.hasPipeline(request.method) || pathEntry.hasPipeline(HttpVerb.ALL)) {
+                let urlResult = pathEntry.checkUrl(request.url);
+                if (urlResult !== undefined && urlResult !== null) {
+                    let pipeline = pathEntry.tryGetPipeline(request.method);
+                    if (pipeline) {
+                        return pipeline.processRequest(request, responder);
                     }
                 }
             }
-            return responder.next();
-        };
+        }
+        return responder.next();
+    }
+
+    callback(): (request: IAPIRequest, responder: IAPIResponder) => Promise<IAPIResult> {
+        return this.processRequest.bind(this);
     }
 
     del(url: string, ...func: APIHandlerFunc[]): IAPIRouter {
@@ -267,7 +353,7 @@ export class APIRouter implements IAPIRouter {
         return this;
     }
 
-    forPath(urlTemplate: string): IAPIRoutingPath {
+    forPath(urlTemplate: string|IAPIUrlTemplate): IAPIRoutingPath {
         return this.getAPIPathByTemplate(urlTemplate, true);
     }
 

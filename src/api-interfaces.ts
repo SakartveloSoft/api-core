@@ -1,4 +1,4 @@
-import {HttpVerb, IAPIRoute, IAPITypeSchema} from "./definition-interfaces";
+import {HttpVerb, IAPIParameter, IAPIRoute, IAPITypeSchema} from "./definition-interfaces";
 import {APIRequest, APIResponder} from "./pipeline";
 
 export interface IHostingEnvironment {
@@ -131,6 +131,7 @@ export interface IAPIResponder extends IAPIResult, IAPIResponse {
 export type APIHandlerFunc = (request: IAPIRequest, responder: IAPIResponder) => Promise<IAPIResult>;
 
 export interface IAPIHandler {
+    processRequest(request: IAPIRequest, responder: IAPIResponder) : Promise<IAPIResult>;
     callback(): APIHandlerFunc;
 }
 
@@ -141,17 +142,27 @@ export interface IAPIPipeline extends IAPIHandler {
     prependPipeline(other: IAPIPipeline): IAPIPipeline;
 }
 
+export interface IAPIUrlTemplate {
+    readonly urlTemplate: string;
+    validateUrl(url: string) : IAPIRouteParameters;
+    append(...segments:(string|IAPIUrlTemplate)[]): IAPIUrlTemplate;
+    prepend(...segments:(string|IAPIUrlTemplate)[]): IAPIUrlTemplate;
+}
+
 export interface IAPICompiledRoute extends IAPIPipeline {
     readonly path: IAPIRoutingPath;
     readonly apiRoute: IAPIRoute;
     readonly expectedMethod: HttpVerb;
-    readonly urlTemplate: string;
+    readonly urlTemplate: IAPIUrlTemplate;
     readonly name: string;
+    readonly controller: string;
+    readonly action: string;
+    readonly parameters: IAPIParameter[];
     checkForRequestMatch(method: HttpVerb, url: string): IAPIRouteParameters;
 }
 
 export interface IAPIRoutingPath {
-    urlTemplate: string;
+    urlTemplate: IAPIUrlTemplate;
     checkUrl(url: string):IAPIRouteParameters;
     hasPipeline(method: HttpVerb): boolean;
     tryGetPipeline(method: HttpVerb): IAPIPipeline;
@@ -174,7 +185,7 @@ export interface IAPIRouteCheckResult {
 export interface IAPIRouter extends IAPIHandler {
     forRoute(route: IAPIRoute, ...handlers: APIHandlerFunc[]): IAPIRouter;
     tryPickRoute(method: HttpVerb, urlPath: string): IAPIRouteCheckResult;
-    forPath(urlTemplate: string): IAPIRoutingPath;
+    forPath(urlTemplate: string|IAPIUrlTemplate): IAPIRoutingPath;
     get(url: string, ...func:APIHandlerFunc[]): IAPIRouter;
     post(url: string, ...func:APIHandlerFunc[]): IAPIRouter;
     put(url: string, ...func:APIHandlerFunc[]): IAPIRouter;
