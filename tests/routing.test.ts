@@ -13,11 +13,11 @@ describe('Test routing infrastructure', () => {
     });
     it('basic routing test', () => {
         let compiledRoute = new APICompiledRoute(HttpVerb.GET, "/api/:controller/:action?", null, null);
-        let apiRequest = new APIRequest(HttpVerb.GET, '/test/someUrl', null, null, null, null, 'test1');
-        let check1Result = compiledRoute.checkForRequestMatch(apiRequest.method, apiRequest.url);
+        let apiRequest = new APIRequest(HttpVerb.GET, '/test/someUrl', null, null, null, null, null,null,'test1');
+        let check1Result = compiledRoute.checkForRequestMatch(apiRequest.method, apiRequest.path);
         expect(check1Result).equal(null);
-        apiRequest = new APIRequest(HttpVerb.GET, '/api/auth/status', null, null, null, null, 'test2');
-        let positiveCheck = compiledRoute.checkForRequestMatch(apiRequest.method, apiRequest.url);
+        apiRequest = new APIRequest(HttpVerb.GET, '/api/auth/status', null, null, null, null, null,null,'test2');
+        let positiveCheck = compiledRoute.checkForRequestMatch(apiRequest.method, apiRequest.path);
         expect(positiveCheck).deep.equal({
             controller: 'auth',
             action: 'status'
@@ -81,7 +81,7 @@ describe('Test routing infrastructure', () => {
         let routePickResult = router.tryPickRoute(HttpVerb.POST, '/auth/sign-in');
         expect(routePickResult).is.not.equals(null);
         let responder = new APIResponder();
-        let request = new APIRequest(HttpVerb.POST, '/auth/sign-in', routePickResult.route, {}, null, {}, 'test1');
+        let request = new APIRequest(HttpVerb.POST, '/auth/sign-in', null, null, routePickResult.route, {}, null, {}, 'test1');
         router.processRequest(request, responder).then(() => {
             expect(responder.action).equal(APIResultAction.SendJSON);
             expect(responder.body).deep.equal({

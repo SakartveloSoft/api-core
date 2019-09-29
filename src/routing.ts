@@ -341,7 +341,7 @@ export class APIRouter implements IAPIRouter {
         for (const pathRef of this.pathsList) {
             let pipeline = pathRef.tryGetRoute(request.method) || pathRef.tryGetRoute(HttpVerb.ALL);
             if (pipeline) {
-                let urlResult = pathRef.checkUrl(request.url);
+                let urlResult = pathRef.checkUrl(request.path);
                 if (urlResult !== undefined && urlResult !== null) {
                     return pipeline.processRequest(request, responder);
                 }

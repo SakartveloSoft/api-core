@@ -1,3 +1,22 @@
+import { parse, stringify} from 'querystring';
+
+function parseQueryString(qsLiteral: string): IAPIRequestQuery {
+    let parsedValue = parse(qsLiteral);
+    let result : IAPIRequestQuery = {};
+    for(const prop in parsedValue) {
+        // noinspection JSUnfilteredForInLoop
+        let value = parsedValue[prop];
+        if (Array.isArray(value)) {
+            // noinspection JSUnfilteredForInLoop
+            result[prop] = value.join(',');
+        } else {
+            // noinspection JSUnfilteredForInLoop
+            result[prop] = value.toString();
+        }
+    }
+    return result;
+}
+
 import {
     APIHandlerFunc,
     APIRequestBodyMode,
@@ -186,9 +205,22 @@ export class APIPipeline implements IAPIPipeline {
 }
 
 export class APIRequest implements IAPIRequest {
-    constructor(method: HttpVerb, url: string, matchedRoute: IAPICompiledRoute, routeParameters?: IAPIRouteParameters, body?: any, headers?: {[name: string]: string|string[]}, requestId?: string) {
+    constructor(method: HttpVerb, url: string, urlPath: string, parsedQuery: IAPIRequestQuery, matchedRoute: IAPICompiledRoute, routeParameters?: IAPIRouteParameters, body?: any, headers?: {[name: string]: string|string[]}, requestId?: string) {
         this.method = method;
         this.url = url;
+        this.path = urlPath;
+        this.query = parsedQuery || {};
+        if (this.url && !this.path) {
+            let parts = url.split('?', 2);
+            this.path = parts[0];
+        }
+        if (this.url && !this.query) {
+            let parts = url.split('?', 2);
+            this.query = parseQueryString(parts[1]);
+        }
+        if (!this.url && this.path && this.query) {
+            this.url = this.path + '?' + stringify(this.query);
+        }
         this.headers = headers || {};
         this.matchedRoute = matchedRoute || null;
         this.parameters = routeParameters || {};
