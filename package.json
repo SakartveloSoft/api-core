@@ -1,6 +1,6 @@
 {
   "name": "@sakartvelosoft/api-core",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "api-core",
   "main": "js/index.js",
   "types": "js/index.d.ts",
